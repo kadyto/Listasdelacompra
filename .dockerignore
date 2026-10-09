@@ -1,0 +1,15 @@
+.git
+node_modules
+dist
+data
+backups
+.env
+.env.*
+*.sqlite*
+*.db*
+test-results
+playwright-report
+tests
+e2e
+*.log
+artifacts
