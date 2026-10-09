@@ -1,10 +1,10 @@
 # Instalar y probar La Compra
 
-Esta guía utiliza la rama **`main`** y Docker Compose. Sirve para el entornos Docker y para probar en un ordenador con Docker. El sistema anfitrión no necesita Node.js. La aplicación se construye desde el código: no hay que descargar una imagen publicada en un registro propio del proyecto.
+Esta guía utiliza la rama **`main`** y Docker Compose para instalar la aplicación en un entorno Docker. No necesitas Node.js en el sistema anfitrión. La aplicación se construye desde el código: no hay que descargar una imagen publicada en un registro propio del proyecto.
 
-## 1. Preparar el sistema anfitrión
+## 1. Preparar el entorno
 
-Activa la aplicación Docker de sistema anfitrión y abre una terminal del sistema anfitrión (por ejemplo mediante SSH autorizado). Elige una carpeta del disco local para el proyecto. Comprueba:
+Instala o activa Docker Engine con Compose v2 y abre una terminal del sistema anfitrión, localmente o mediante SSH autorizado. Elige una carpeta del disco local para el proyecto. Comprueba:
 
 ```sh
 git --version
@@ -12,7 +12,7 @@ docker version
 docker compose version
 ```
 
-Docker debe mostrar también información del **servidor**, y Compose debe ser v2. Si aparece «permission denied» al acceder a Docker, utiliza una cuenta autorizada por el sistema anfitrión. Si no tienes Git, descarga el ZIP de `main` desde GitHub, descomprímelo y abre una terminal en esa carpeta. En ese caso, las actualizaciones del código se harán descargando otro ZIP y conservando la configuración y los datos fuera de la carpeta del código.
+Docker debe mostrar también información del **servidor**, y Compose debe ser v2. Si aparece «permission denied» al acceder a Docker, utiliza una cuenta autorizada para gestionar Docker en ese entorno. Si no tienes Git, descarga el ZIP de `main` desde GitHub, descomprímelo y abre una terminal en esa carpeta. En ese caso, las actualizaciones del código se harán descargando otro ZIP y conservando la configuración y los datos fuera de la carpeta del código.
 
 ## 2. Descargar `main`
 
@@ -46,7 +46,7 @@ id -u
 id -g
 ```
 
-Edita `.env` con el editor de archivos del sistema anfitrión o de la terminal:
+Edita `.env` con un editor de texto:
 
 | Variable | Qué poner |
 | --- | --- |
@@ -88,7 +88,7 @@ Con `BIND_ADDRESS=127.0.0.1`, el puerto todavía no es accesible directamente de
 
 ### Opción recomendada: Tailscale Serve y HTTPS
 
-Tailscale debe estar instalado y conectado a tu tailnet en el sistema anfitrión y en Android. La instalación del sistema anfitrión debe admitir Serve y certificados HTTPS. Con el puerto de ejemplo `3080`, ejecuta **en el sistema anfitrión**:
+Tailscale debe estar instalado y conectado a tu tailnet en el sistema anfitrión y en el dispositivo Android. La instalación del anfitrión debe admitir Serve y certificados HTTPS. Con el puerto de ejemplo `3080`, ejecuta **en el sistema anfitrión**:
 
 ```sh
 tailscale serve --bg http://127.0.0.1:3080
@@ -101,7 +101,7 @@ Este acceso es privado para la tailnet. No actives Funnel ni abras puertos del r
 
 ### Alternativa: IP LAN o Tailscale y puerto
 
-Si no puedes usar Serve, cambia `BIND_ADDRESS` en `.env` a la IP de la interfaz del sistema anfitrión que quieres utilizar. `0.0.0.0` permite ambas interfaces, pero escucha en todas ellas: limita el acceso con el firewall del sistema anfitrión y las reglas de Tailscale.
+Si no puedes usar Serve, cambia `BIND_ADDRESS` en `.env` a la IP de la interfaz del sistema anfitrión que quieres utilizar. `0.0.0.0` permite ambas interfaces, pero escucha en todas ellas: limita el acceso con el firewall del entorno y las reglas de Tailscale.
 
 ```sh
 docker compose up -d --wait
@@ -153,7 +153,7 @@ docker compose build --pull
 docker compose up -d --wait
 ```
 
-Comprueba `docker compose ps` y tus datos desde la interfaz. La copia aparece en `BACKUP_DIR`; conserva otra copia fuera del sistema anfitrión. **No copies solo el archivo SQLite con la aplicación abierta**, porque utiliza WAL. La [sección de copias y restauración del README](../README.md#copias-sqlite-consistentes) explica cómo recuperar esa copia con todas las instancias detenidas.
+Comprueba `docker compose ps` y tus datos desde la interfaz. La copia aparece en `BACKUP_DIR`; conserva otra copia en un dispositivo o ubicación independiente del entorno de despliegue. **No copies solo el archivo SQLite con la aplicación abierta**, porque utiliza WAL. La [sección de copias y restauración del README](../README.md#copias-sqlite-consistentes) explica cómo recuperar esa copia con todas las instancias detenidas.
 
 ## Problemas habituales
 
@@ -180,6 +180,6 @@ npm run test:e2e
 npm run test:docker
 ```
 
-Los tests usan bases temporales, separadas de tus datos. `test:docker` construye una imagen y comprueba reinicio, recreación, backup en caliente y restauración. No necesitas ejecutar estos tests para instalar en el sistema anfitrión: los pasos 4, 6 y 7 permiten comprobar tu instalación concreta.
+Los tests usan bases temporales, separadas de tus datos. `test:docker` construye una imagen y comprueba reinicio, recreación, backup en caliente y restauración. No necesitas ejecutar estos tests para desplegar la aplicación: los pasos 4, 6 y 7 permiten comprobar tu instalación concreta.
 
 La aplicación no tiene login. Todo dispositivo autorizado que alcance su puerto comparte acceso a los datos familiares. Mantén el acceso limitado a tu red privada y a dispositivos de confianza.

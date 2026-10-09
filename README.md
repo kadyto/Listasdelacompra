@@ -46,11 +46,11 @@ npm run test:docker
 
 Playwright utiliza `/usr/bin/chromium` si existe; puedes indicar `PLAYWRIGHT_CHROMIUM_PATH`. Si no tienes Chromium, instala con `npx playwright install --with-deps chromium`. Las pruebas Docker requieren Docker Engine y Compose v2: construyen una imagen y usan un proyecto y directorios temporales para verificar API, reinicio, recreación y backup/restauración.
 
-Si la nube tiene un proxy TLS propio, las pruebas Docker admiten `BUILD_CA_CERT` con una ruta al certificado/bundle de confianza proporcionado por ese entorno. Se monta solo durante el build mediante un secret de BuildKit y no se copia a la imagen ni al repositorio. La verificación TLS y los hashes del lockfile permanecen activos. En esta nube se ha usado `BUILDX_CONFIG=/workspace/.cache/buildx BUILD_CA_CERT=/etc/ssl/certs/ca-certificates.crt npm run test:docker`; el sistema anfitrión sin ese proxy no necesita esta opción.
+Si el entorno de pruebas utiliza un proxy TLS propio, las pruebas Docker admiten `BUILD_CA_CERT` con una ruta al certificado/bundle de confianza proporcionado por ese entorno. Se monta solo durante el build mediante un secret de BuildKit y no se copia a la imagen ni al repositorio. La verificación TLS y los hashes del lockfile permanecen activos. Los entornos sin ese proxy no necesitan esta opción.
 
 ## Despliegue en entornos Docker
 
-Necesitas Docker del sistema anfitrión o Docker Engine con Compose v2 y una terminal; no hace falta Node en el sistema anfitrión. Ejecuta los comandos desde la carpeta de este repositorio. No se ha accedido ni desplegado nada en tu sistema anfitrión.
+Necesitas Docker Engine con Compose v2 y una terminal; no hace falta Node.js en el sistema anfitrión. Ejecuta los comandos desde la carpeta de este repositorio.
 
 1. Descarga la rama `main` en una carpeta del sistema anfitrión con los comandos de «Empieza aquí».
 2. Copia `.env.example` a `.env`. Adapta `DATA_DIR` y `BACKUP_DIR` a carpetas persistentes **fuera del código**; puedes usar rutas absolutas privadas. No subas esas rutas a GitHub.
@@ -60,20 +60,20 @@ Necesitas Docker del sistema anfitrión o Docker Engine con Compose v2 y una ter
 cp .env.example .env
 mkdir -p data backups
 chmod 700 data backups
-# Ajusta el propietario a los UID/GID de .env con las herramientas del sistema anfitrión.
+# Ajusta el propietario a los UID/GID de .env con las herramientas del sistema.
 docker compose config --quiet
 docker compose up -d --build --wait
 docker compose ps
 docker compose logs --tail=100 app
 ```
 
-El ejemplo crea las rutas relativas predeterminadas; con rutas absolutas, crea **esas** carpetas. El usuario del contenedor debe poder leer y escribir `/data` y `/backups`, incluidos los archivos `-wal`/`-shm`. No uses permisos 777. Guarda SQLite en el disco local del sistema anfitrión, con bloqueo fiable, no en un montaje SMB/NFS. Mantén una sola instancia por base de datos.
+El ejemplo crea las rutas relativas predeterminadas; con rutas absolutas, crea **esas** carpetas. El usuario del contenedor debe poder leer y escribir `/data` y `/backups`, incluidos los archivos `-wal`/`-shm`. No uses permisos 777. Guarda SQLite en un disco local del sistema anfitrión, con bloqueo fiable, no en un montaje SMB/NFS. Mantén una sola instancia por base de datos.
 
-`HTTP_PORT` configura el puerto exterior (3080 por defecto); el interior es 3000. `BIND_ADDRESS=127.0.0.1` limita el acceso al propio sistema anfitrión y es lo recomendado con Tailscale Serve. Se incluyen reinicio `unless-stopped`, healthcheck con consulta SQLite, cierre al recibir SIGTERM, usuario sin privilegios, aplicación de solo lectura y volumen persistente.
+`HTTP_PORT` configura el puerto exterior (3080 por defecto); el interior es 3000. `BIND_ADDRESS=127.0.0.1` limita el acceso al sistema anfitrión y es lo recomendado con Tailscale Serve. Se incluyen reinicio `unless-stopped`, healthcheck con consulta SQLite, cierre al recibir SIGTERM, usuario sin privilegios, aplicación de solo lectura y volumen persistente.
 
 ### A. Tailscale Serve con HTTPS privado (recomendado)
 
-Requiere Tailscale instalado **en el sistema anfitrión**, CLI con Serve, permisos de la tailnet y certificados HTTPS habilitados. El soporte varía según sistema anfitrión y la instalación de Tailscale; consulta [Tailscale Serve](https://tailscale.com/kb/1242/tailscale-serve). Si no está disponible, utiliza B.
+Requiere Tailscale instalado **en el sistema anfitrión**, CLI con Serve, permisos de la tailnet y certificados HTTPS habilitados. La disponibilidad de Serve depende del entorno y de la instalación de Tailscale; consulta [Tailscale Serve](https://tailscale.com/kb/1242/tailscale-serve). Si no está disponible, utiliza B.
 
 Con el contenedor escuchando en loopback, ejecuta en el sistema anfitrión:
 
@@ -86,23 +86,23 @@ Sustituye 3080 por tu `HTTP_PORT`. Usa la URL HTTPS privada que devuelve Tailsca
 
 Si Tailscale está en otro contenedor, su `127.0.0.1` puede ser distinto del sistema anfitrión. Debe alcanzar el puerto del host con una configuración compatible (por ejemplo red de host, si tu instalación lo permite). No lo publiques para resolverlo. Si un proxy privado cambia `Host` y ves «Origen no autorizado», configura `ALLOWED_ORIGINS` con tu origen HTTPS exacto; nunca `*`. Normalmente se deja vacío.
 
-### B. IP LAN o Tailscale del sistema anfitrión y puerto HTTP
+### B. IP LAN o Tailscale del servidor y puerto HTTP
 
 Configura `BIND_ADDRESS` con la **IP de interfaz** que quieras usar, o `0.0.0.0` para ambas redes (escucha en todas las interfaces). Aplica con `docker compose up -d`. Abre `http://IP_DEL_SERVIDOR:PUERTO` desde un dispositivo autorizado, usando tus valores reales.
 
-Restringe acceso con firewall del sistema anfitrión y ACL/grants de Tailscale. IP LAN + HTTP no cifra la aplicación. El transporte Tailscale está cifrado, pero el navegador sigue viendo HTTP sin contexto seguro. No configures UPnP ni redirecciones del router y verifica que el puerto solo sea accesible por los dispositivos autorizados.
+Restringe acceso con el firewall del entorno y ACL/grants de Tailscale. IP LAN + HTTP no cifra la aplicación. El transporte Tailscale está cifrado, pero el navegador sigue viendo HTTP sin contexto seguro. No configures UPnP ni redirecciones del router y verifica que el puerto solo sea accesible por los dispositivos autorizados.
 
 ## Instalar en Android (PWA)
 
 Abre la URL **HTTPS** de Tailscale Serve en Chrome para Android y usa «Instalar aplicación»/«Añadir a la pantalla de inicio» cuando Chrome lo ofrezca. Incluye manifiesto, iconos PNG 192/512, icono maskable y service worker; se abre sin las barras del navegador.
 
-Una IP privada **HTTP** normalmente no admite service workers ni instalación completa; la excepción de localhost no sirve para el sistema anfitrión desde Android. La web funciona conectada en HTTP y puede haber un acceso directo simple, pero la PWA depende de HTTPS y los criterios del navegador.
+Una IP privada **HTTP** normalmente no admite service workers ni instalación completa; la excepción de localhost no se aplica al acceder a un servidor remoto desde Android. La web funciona conectada en HTTP y puede haber un acceso directo simple, pero la PWA depende de HTTPS y los criterios del navegador.
 
 No hay sincronización offline. El service worker cachea recursos estáticos y muestra una página clara sin conexión; **no cachea `/api` ni encola escrituras**. Si la conexión falla, no presenta cambios como guardados. Mantén la conectividad/Tailscale activos durante la compra. Los datos se refrescan cada 20 segundos mientras la página es visible y al volver a ella.
 
 ## Actualizar sin perder datos
 
-Haz una copia consistente antes de actualizar. Desde el repositorio del sistema anfitrión:
+Haz una copia consistente antes de actualizar. Desde el repositorio en el entorno de despliegue:
 
 ```sh
 git pull --ff-only
@@ -111,7 +111,7 @@ docker compose up -d --wait
 docker compose ps
 ```
 
-Mantén el checkout del sistema anfitrión en `main` para recibir la versión de uso. Reconstruir/recrear no elimina las carpetas montadas. No borres `DATA_DIR`, no guardes la base en la imagen ni ejecutes limpieza sobre los datos. Las migraciones SQL se aplican transaccionalmente al arrancar y se registran por versión. Para volver a código con esquema incompatible, detén la aplicación y restaura una copia compatible; no hay downgrade automático.
+Mantén el checkout en `main` para recibir la versión de uso. Reconstruir/recrear no elimina las carpetas montadas. No borres `DATA_DIR`, no guardes la base en la imagen ni ejecutes limpieza sobre los datos. Las migraciones SQL se aplican transaccionalmente al arrancar y se registran por versión. Para volver a código con esquema incompatible, detén la aplicación y restaura una copia compatible; no hay downgrade automático.
 
 ## Copias SQLite consistentes
 
@@ -166,8 +166,8 @@ API bajo `/api`: comercios, categorías, catálogo/ficha, listas/artículos/orde
 
 No se incluyen escaneo, CSV, gráficos, cuentas, alertas ni sincronización offline. `.gitignore`/`.dockerignore` excluyen datos, copias, secretos y configuración local. Las pruebas solo utilizan datos sintéticos.
 
-## Validación en el sistema anfitrión
+## Validación en el entorno de despliegue
 
 Las pruebas cubren creación en dos listas, precios distintos, selección por fecha, historial, estados independientes, retirada sin perder precios y reapertura de SQLite. Las E2E cubren crear/registrar/comparar en pantalla móvil, modo oscuro y recursos PWA. La prueba Docker verifica persistencia al reiniciar y **recrear**, y backup/restauración en caliente.
 
-La compatibilidad específica con sistema anfitrión, los permisos de tus carpetas, firewall, Tailscale Serve, certificados y la instalación real desde Chrome en tu Android se deben comprobar en tus dispositivos. Una prueba en la nube no establece que esos ajustes privados estén configurados.
+Los permisos de las carpetas, el firewall, Tailscale Serve, los certificados y la instalación desde Chrome en Android se deben comprobar en cada entorno de despliegue. Las pruebas automatizadas no verifican la configuración de acceso de cada instalación.
