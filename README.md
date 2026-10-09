@@ -2,6 +2,17 @@
 
 Listas de la compra para un espacio familiar compartido, con catálogo común y comparación de los precios que tú registras. Interfaz en español, pensada para Android y escritorio. React + TypeScript + Vite, API Fastify y SQLite; un contenedor, sin cuentas ni servicios comerciales.
 
+## Empieza aquí
+
+La versión de uso está en la rama **`main`**. Sigue la [guía paso a paso para instalar y probar](docs/INSTALACION.md): incluye los comandos para descargarla, configurar las carpetas y permisos, arrancar Docker, acceder desde Android y comprobar las listas, los precios y la persistencia. No necesitas instalar Node.js en el sistema anfitrión.
+
+```sh
+git clone --branch main https://github.com/kadyto/Listasdelacompra.git
+cd Listasdelacompra
+```
+
+Si ya tienes el repositorio, conserva tu `.env` y tus carpetas de datos. Comprueba `git status`, cambia a `main` con `git switch main` y actualiza con `git pull --ff-only origin main`. No descartes cambios locales para actualizar. Antes de arrancar, completa los pasos de configuración de la guía.
+
 ## Funcionalidades
 
 - Crear, editar y desactivar supermercados. Carrefour, Costco, DIA y Mercadona se crean en la primera instalación; no se incluyen productos ni precios ficticios.
@@ -41,7 +52,7 @@ Si la nube tiene un proxy TLS propio, las pruebas Docker admiten `BUILD_CA_CERT`
 
 Necesitas Docker del sistema anfitrión o Docker Engine con Compose v2 y una terminal; no hace falta Node en el sistema anfitrión. Ejecuta los comandos desde la carpeta de este repositorio. No se ha accedido ni desplegado nada en tu sistema anfitrión.
 
-1. Obtén la versión revisada del repositorio en una carpeta del sistema anfitrión.
+1. Descarga la rama `main` en una carpeta del sistema anfitrión con los comandos de «Empieza aquí».
 2. Copia `.env.example` a `.env`. Adapta `DATA_DIR` y `BACKUP_DIR` a carpetas persistentes **fuera del código**; puedes usar rutas absolutas privadas. No subas esas rutas a GitHub.
 3. Averigua el UID y GID del propietario (`id -u`, `id -g`) y configúralos en `APP_UID`/`APP_GID`. Crea ambas carpetas antes de arrancar: Docker podría crearlas como root si no existen.
 
@@ -100,7 +111,7 @@ docker compose up -d --wait
 docker compose ps
 ```
 
-Usa una rama/versión revisada; si despliegas la PR, selecciona esa rama explícitamente. Reconstruir/recrear no elimina las carpetas montadas. No borres `DATA_DIR`, no guardes la base en la imagen ni ejecutes limpieza sobre los datos. Las migraciones SQL se aplican transaccionalmente al arrancar y se registran por versión. Para volver a código con esquema incompatible, detén la aplicación y restaura una copia compatible; no hay downgrade automático.
+Mantén el checkout del sistema anfitrión en `main` para recibir la versión de uso. Reconstruir/recrear no elimina las carpetas montadas. No borres `DATA_DIR`, no guardes la base en la imagen ni ejecutes limpieza sobre los datos. Las migraciones SQL se aplican transaccionalmente al arrancar y se registran por versión. Para volver a código con esquema incompatible, detén la aplicación y restaura una copia compatible; no hay downgrade automático.
 
 ## Copias SQLite consistentes
 
