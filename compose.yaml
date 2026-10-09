@@ -1,0 +1,29 @@
+services:
+  app:
+    image: listasdelacompra:local
+    build:
+      context: .
+      target: production
+    init: true
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_PATH: /data/compra.sqlite
+      TZ: Europe/Madrid
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-}"
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-3080}:3000"
+    volumes:
+      - "${DATA_DIR:-./data}:/data"
+      - "${BACKUP_DIR:-./backups}:/backups"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    stop_grace_period: 20s
