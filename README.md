@@ -6,6 +6,8 @@ Listas de la compra para un espacio familiar compartido, con catálogo común y 
 
 La versión de uso está en la rama **`main`**. Sigue la [guía paso a paso para instalar y probar](docs/INSTALACION.md): incluye los comandos para descargarla, configurar las carpetas y permisos, arrancar Docker, acceder desde Android y comprobar las listas, los precios y la persistencia. No necesitas instalar Node.js en el sistema anfitrión.
 
+Si creas el stack pegando YAML en **Dockhand**, utiliza la [guía de Dockhand](docs/DOCKHAND.md) y [compose.dockhand.yaml](compose.dockhand.yaml). Ese stack descarga el código comprimido por HTTPS y no necesita Git para construir la imagen.
+
 ```sh
 git clone --branch main https://github.com/kadyto/Listasdelacompra.git
 cd Listasdelacompra

@@ -1,0 +1,31 @@
+services:
+  app:
+    build:
+      context: https://github.com/kadyto/Listasdelacompra/archive/refs/heads/main.tar.gz
+      dockerfile: Listasdelacompra-main/Dockerfile
+      args:
+        SOURCE_DIR: Listasdelacompra-main
+      target: production
+    init: true
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_PATH: /data/compra.sqlite
+      TZ: Europe/Madrid
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-}"
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-3080}:3000"
+    volumes:
+      - "${DATA_DIR:?Configura DATA_DIR con una ruta absoluta}:/data"
+      - "${BACKUP_DIR:?Configura BACKUP_DIR con una ruta absoluta}:/backups"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    stop_grace_period: 20s

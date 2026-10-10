@@ -2,6 +2,8 @@
 
 Esta guía utiliza la rama **`main`** y Docker Compose para instalar la aplicación en un entorno Docker. No necesitas Node.js en el sistema anfitrión. La aplicación se construye desde el código: no hay que descargar una imagen publicada en un registro propio del proyecto.
 
+Para crear el stack pegando YAML en **Dockhand**, sigue la [guía específica de Dockhand](DOCKHAND.md). Incluye un contexto HTTPS que permite construir sin Git.
+
 ## 1. Preparar el entorno
 
 Instala o activa Docker Engine con Compose v2 y abre una terminal del sistema anfitrión, localmente o mediante SSH autorizado. Elige una carpeta del disco local para el proyecto. Comprueba:

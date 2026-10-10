@@ -1,10 +1,12 @@
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
-COPY package.json package-lock.json ./
+# Los archivos de GitHub incluyen una carpeta raíz; el checkout local utiliza '.'.
+ARG SOURCE_DIR=.
+COPY ${SOURCE_DIR}/package.json ${SOURCE_DIR}/package-lock.json ./
 RUN --mount=type=secret,id=build_ca,required=false \
     if [ -s /run/secrets/build_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/build_ca; fi; \
     npm ci --no-audit --no-fund
-COPY . .
+COPY ${SOURCE_DIR}/ ./
 RUN --mount=type=secret,id=build_ca,required=false \
     if [ -s /run/secrets/build_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/build_ca; fi; \
     npm run build && npm prune --omit=dev --no-audit --no-fund

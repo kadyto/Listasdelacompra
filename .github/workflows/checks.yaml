@@ -34,3 +34,9 @@ jobs:
         with:
           node-version: 24
       - run: npm run test:docker
+      - name: Construir desde un archivo con la carpeta raíz de GitHub
+        run: |
+          git archive --format=tar --prefix=Listasdelacompra-main/ HEAD | docker build \
+            --file Listasdelacompra-main/Dockerfile \
+            --build-arg SOURCE_DIR=Listasdelacompra-main \
+            --target production --tag listasdelacompra:archive-test -
