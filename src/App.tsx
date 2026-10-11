@@ -29,6 +29,7 @@ import {
   Catalog,
   Home,
   ListPage,
+  PendingListsPage,
   PricesPage,
   ProductPage,
   SettingsPage,
@@ -169,7 +170,9 @@ export default function App() {
             la compra<span>un poco más fácil.</span>
           </div>
         </a>
-        <span className="nav-label">MI ESPACIO</span>
+        <a href="#/" className="nav-label">
+          MI ESPACIO
+        </a>
         <nav aria-label="Navegación principal">
           {nav.map((n) => (
             <a
@@ -208,8 +211,10 @@ export default function App() {
       <div className="main-shell">
         <header className="topbar">
           <div className="breadcrumb">
-            <ShoppingBasket size={17} />
-            <span>Mi espacio</span>
+            <a href="#/" className="space-link">
+              <ShoppingBasket size={17} />
+              <span>Mi espacio</span>
+            </a>
             <ChevronRight size={14} />
             <strong>{label}</strong>
           </div>
@@ -226,9 +231,14 @@ export default function App() {
             >
               {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
             </button>
-            <span className="family-avatar" title="Espacio familiar">
+            <a
+              href="#/"
+              className="family-avatar"
+              aria-label="Ir al inicio"
+              title="Ir al inicio"
+            >
               <House size={18} />
-            </span>
+            </a>
           </div>
         </header>
         <main id="main" tabIndex={-1}>
@@ -245,6 +255,8 @@ export default function App() {
             !error && <Loading />
           ) : route === "/" ? (
             <Home dashboard={dashboard.data!} {...actions} />
+          ) : route === "/lists" ? (
+            <PendingListsPage stores={stores} />
           ) : route === "/catalog" ? (
             <Catalog products={prods} categories={cats} {...actions} />
           ) : route.split("?")[0] === "/prices" ? (

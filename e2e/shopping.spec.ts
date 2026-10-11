@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type APIRequestContext } from "@playwright/test";
 
 test("reutiliza catálogo, respeta cantidades y vacía comprados con confirmación", async ({
   page,
@@ -219,6 +219,189 @@ test("configuración, modo oscuro e instalación PWA sin cachear la API", async 
   ).toBeVisible();
   await page.screenshot({
     path: `test-results/home-${testInfo.project.name}.png`,
+    fullPage: true,
+  });
+});
+
+async function prepareSharedList(request: APIRequestContext, suffix: string) {
+  const stores = await (await request.get("/api/stores")).json();
+  const store = stores.find((s: { name: string }) => s.name === "Mercadona");
+  const category = (await (await request.get("/api/categories")).json())[0];
+  const name = `Limón & té 🍋 ${suffix}`;
+  const bought = `Ya comprado ${suffix}`;
+  for (const productName of [name, bought]) {
+    const response = await request.post("/api/products", {
+      data: {
+        name: productName,
+        brand: "Marca de prueba",
+        category_id: category.id,
+        package_amount: 1,
+        unit: "l",
+        list_ids: [store.list_id],
+      },
+    });
+    expect(response.status()).toBe(201);
+  }
+  const list = await (await request.get(`/api/stores/${store.id}/list`)).json();
+  for (const productName of [name, bought]) {
+    const item = list.items.find((i: { name: string }) => i.name === productName);
+    const response = await request.put(`/api/items/${item.id}`, {
+      data: {
+        quantity: 3,
+        notes: "Sin azúcar; envase grande.",
+        purchased: productName === bought,
+      },
+    });
+    expect(response.ok()).toBeTruthy();
+  }
+  return { store, name, bought };
+}
+
+test("comparte pendientes desde el menú del móvil y permite cancelar", async ({
+  page,
+  request,
+}, testInfo) => {
+  const { store, name, bought } = await prepareSharedList(
+    request,
+    `nativo ${testInfo.project.name}`,
+  );
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: async (data: ShareData) => Reflect.set(window, "sharedList", data),
+    });
+  });
+  await page.goto(`/#/list/${store.id}`);
+  const share = page.getByRole("button", { name: "Compartir", exact: true });
+  await share.click();
+  await expect(share).toBeEnabled();
+  const payload = await page.evaluate(() => Reflect.get(window, "sharedList"));
+  expect(payload.title).toContain("Mercadona");
+  expect(payload.text).toContain(`3 × ${name}`);
+  expect(payload.text).toContain("Marca de prueba · 1 l");
+  expect(payload.text).toContain("Sin azúcar; envase grande.");
+  expect(payload.text).not.toContain(bought);
+  expect(payload.url).toBeUndefined();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: () => Promise.reject(new DOMException("Cancelado", "AbortError")),
+    });
+  });
+  await share.click();
+  await expect(share).toBeEnabled();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: () =>
+        Promise.reject(new DOMException("No disponible", "NotAllowedError")),
+    });
+  });
+  await share.click();
+  await expect(
+    page.getByRole("dialog", { name: "Compartir lista" }),
+  ).toBeVisible();
+});
+
+test("abre la lista desde Inicio y permite WhatsApp o copiar sin menú nativo", async ({
+  page,
+  request,
+}, testInfo) => {
+  const { name, bought } = await prepareSharedList(
+    request,
+    `texto ${testInfo.project.name}`,
+  );
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (text: string) => Reflect.set(window, "copiedList", text),
+      },
+    });
+  });
+  await page.goto("/");
+  await page
+    .locator(".summary-card")
+    .filter({ hasText: "Productos en el catálogo" })
+    .locator("strong")
+    .click();
+  await expect(page).toHaveURL(/#\/catalog$/);
+  await page
+    .locator("header")
+    .getByRole("link", { name: "Mi espacio", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Tu compra, en orden." }),
+  ).toBeVisible();
+  await page
+    .locator(".summary-card")
+    .filter({ hasText: "Supermercados" })
+    .locator("strong")
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Supermercados", exact: true }),
+  ).toBeVisible();
+  await page
+    .locator("header")
+    .getByRole("link", { name: "Ir al inicio", exact: true })
+    .click();
+  await page
+    .locator(".summary-card")
+    .filter({ hasText: "Artículos pendientes" })
+    .locator("strong")
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Tus compras pendientes" }),
+  ).toBeVisible();
+  await page
+    .locator(".store-card")
+    .filter({
+      has: page.getByRole("heading", { name: "Mercadona", exact: true }),
+    })
+    .click();
+  await page.getByRole("button", { name: "Compartir", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Compartir lista" });
+  await expect(dialog).toBeVisible();
+  const textarea = dialog.getByRole("textbox", { name: "Texto de la lista" });
+  const text = await textarea.inputValue();
+  expect(text).toContain(`3 × ${name}`);
+  expect(text).not.toContain(bought);
+  const href = await dialog
+    .getByRole("link", { name: "Compartir por WhatsApp" })
+    .getAttribute("href");
+  const url = new URL(href!);
+  expect(url.origin).toBe("https://wa.me");
+  expect(url.searchParams.get("text")).toBe(text);
+  await dialog.getByRole("button", { name: "Copiar texto" }).click();
+  await expect(dialog.getByRole("status")).toContainText("Lista copiada");
+  expect(await page.evaluate(() => Reflect.get(window, "copiedList"))).toBe(
+    text,
+  );
+
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: undefined,
+    });
+  });
+  await dialog.getByRole("button", { name: "Copiar texto" }).click();
+  await expect(dialog.getByRole("status")).toContainText("Texto seleccionado");
+  await expect(textarea).toHaveJSProperty("selectionStart", 0);
+  await expect(textarea).toHaveJSProperty("selectionEnd", text.length);
+  await expect(page.locator("body")).toHaveJSProperty(
+    "scrollWidth",
+    await page.evaluate(() => document.documentElement.clientWidth),
+  );
+  await page.screenshot({
+    path: `test-results/share-${testInfo.project.name}.png`,
     fullPage: true,
   });
 });

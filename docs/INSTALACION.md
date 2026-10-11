@@ -127,6 +127,8 @@ En una instalación nueva aparecen Carrefour, Costco, DIA y Mercadona, con lista
 
 También puedes añadir productos ya creados desde **Añadir productos**, buscar en el catálogo mientras escribes, editar cantidades/notas y cambiar el orden a categoría, nombre o manual. El modo oscuro se activa con el botón de la luna y se recuerda en cada dispositivo.
 
+Para enviar una lista, ábrela y pulsa **Compartir**. Se enviarán los artículos pendientes con sus cantidades, formatos y notas, en el orden que tengas seleccionado. En móviles compatibles se abre el menú de compartir del sistema: elige WhatsApp o la aplicación que prefieras. Si ese menú no está disponible, puedes usar **Compartir por WhatsApp** o **Copiar texto**; si el navegador no permite copiar automáticamente, el texto quedará seleccionado para copiarlo desde su menú. Quien reciba la lista puede leerla sin acceder a tu aplicación; es una copia en texto, no una lista sincronizada. No se incluyen los artículos ya comprados.
+
 ## 7. Comprobar la persistencia
 
 Con algún producto y precio que quieras conservar, toma nota de lo que muestra la interfaz. Reinicia:

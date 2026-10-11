@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { api, date, dateTime, money, number, oldPrice, pack } from "./lib";
 import { Brand, Empty, ErrorBox, LinkArrow, Loading } from "./components";
+import { ShareList } from "./ShareList";
 import type {
   Category,
   Dashboard,
@@ -167,6 +168,66 @@ function BagIllustration() {
     </svg>
   );
 }
+function StoreCards({ stores }: { stores: Store[] }) {
+  return (
+    <div className="stores-grid">
+      {stores.map((s) => (
+        <a className="store-card" href={`#/list/${s.id}`} key={s.id}>
+          <div className="store-card-top">
+            <Brand name={s.name} />
+            <span className={`status-chip ${s.pending_count ? "has-items" : ""}`}>
+              <span />
+              {s.pending_count ? "Por comprar" : "Al día"}
+            </span>
+          </div>
+          <h3>{s.name}</h3>
+          <p className="store-pending">
+            <strong>{s.pending_count}</strong>{" "}
+            {s.pending_count === 1 ? "artículo pendiente" : "artículos pendientes"}
+          </p>
+          <div className="store-estimate">
+            <span>Estimación registrada</span>
+            <strong>{s.priced_count ? money(s.estimated_cents) : "—"}</strong>
+          </div>
+          {s.pending_count > s.priced_count && (
+            <span className="estimate-note">
+              {s.pending_count - s.priced_count} sin precio conocido
+            </span>
+          )}
+          <div className="store-card-link">
+            Abrir mi lista <LinkArrow />
+          </div>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+export function PendingListsPage({ stores }: { stores: Store[] }) {
+  const pending = stores.filter((store) => store.active && store.pending_count);
+  return (
+    <>
+      <PageHeading
+        eyebrow="MIS LISTAS"
+        title="Tus compras pendientes"
+        description="Elige un supermercado para ver lo que te falta por comprar."
+      />
+      <StoreCards stores={pending} />
+      {!pending.length && (
+        <Empty
+          title="Todo al día"
+          text="No tienes artículos pendientes en tus supermercados activos."
+          action={
+            <a className="button primary" href="#/">
+              Ver mis supermercados
+            </a>
+          }
+        />
+      )}
+    </>
+  );
+}
+
 export function Home({
   dashboard,
   ...actions
@@ -209,7 +270,7 @@ export function Home({
         <BagIllustration />
       </section>
       <div className="summary-grid">
-        <div className="summary-card">
+        <a className="summary-card" href="#/lists">
           <span className="stat-icon green">
             <ListChecks size={22} />
           </span>
@@ -218,8 +279,8 @@ export function Home({
             <span>Artículos pendientes</span>
           </div>
           <span className="stat-caption">En todas tus listas</span>
-        </div>
-        <div className="summary-card">
+        </a>
+        <a className="summary-card" href="#/settings">
           <span className="stat-icon amber">
             <ShoppingBasket size={22} />
           </span>
@@ -228,8 +289,8 @@ export function Home({
             <span>Supermercados</span>
           </div>
           <span className="stat-caption">Tus comercios activos</span>
-        </div>
-        <div className="summary-card">
+        </a>
+        <a className="summary-card" href="#/catalog">
           <span className="stat-icon lavender">
             <Package size={22} />
           </span>
@@ -237,10 +298,10 @@ export function Home({
             <strong>{dashboard.product_count}</strong>
             <span>Productos en el catálogo</span>
           </div>
-          <a className="stat-caption link" href="#/catalog">
+          <span className="stat-caption link">
             Ver catálogo <ChevronRight size={14} />
-          </a>
-        </div>
+          </span>
+        </a>
       </div>
       <div className="section-heading">
         <div>
@@ -257,40 +318,7 @@ export function Home({
           <Plus size={17} /> Añadir supermercado
         </button>
       </div>
-      <div className="stores-grid">
-        {active.map((s) => (
-          <a className="store-card" href={`#/list/${s.id}`} key={s.id}>
-            <div className="store-card-top">
-              <Brand name={s.name} />
-              <span
-                className={`status-chip ${s.pending_count ? "has-items" : ""}`}
-              >
-                <span />
-                {s.pending_count ? "Por comprar" : "Al día"}
-              </span>
-            </div>
-            <h3>{s.name}</h3>
-            <p className="store-pending">
-              <strong>{s.pending_count}</strong>{" "}
-              {s.pending_count === 1
-                ? "artículo pendiente"
-                : "artículos pendientes"}
-            </p>
-            <div className="store-estimate">
-              <span>Estimación registrada</span>
-              <strong>{s.priced_count ? money(s.estimated_cents) : "—"}</strong>
-            </div>
-            {s.pending_count > s.priced_count && (
-              <span className="estimate-note">
-                {s.pending_count - s.priced_count} sin precio conocido
-              </span>
-            )}
-            <div className="store-card-link">
-              Abrir mi lista <LinkArrow />
-            </div>
-          </a>
-        ))}
-      </div>
+      <StoreCards stores={active} />
       {!active.length && (
         <Empty
           title="Tu primera parada"
@@ -693,6 +721,7 @@ export function ListPage({
           data.store.notes || "Lo que necesitas para tu próxima compra."
         }
       >
+        <ShareList store={data.store.name} items={grouped} />
         <button
           className="button primary"
           disabled={!data.store.active}

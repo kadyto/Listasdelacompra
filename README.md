@@ -20,6 +20,7 @@ Si ya tienes el repositorio, conserva tu `.env` y tus carpetas de datos. Comprue
 - Crear, editar y desactivar supermercados. Carrefour, Costco, DIA y Mercadona se crean en la primera instalación; no se incluyen productos ni precios ficticios.
 - Crear y editar productos con marca, categoría, formato, EAN y notas. Seleccionar varias listas al crearlos y añadirlos a otras después. Buscar por nombre, marca o EAN y gestionar categorías.
 - Comprar con cantidades y estados independientes por lista, notas, pendientes/comprados, orden por categoría/nombre/manual y vaciado con confirmación.
+- Compartir los artículos pendientes de cada lista, con cantidades, formatos y notas, desde el menú del móvil, por WhatsApp o copiando el texto.
 - Registrar precios aunque el producto no esté en una lista. Consultar el último por comercio, fecha, historial, ofertas, menor registrado, diferencias en euros y porcentaje y precio por litro, kilo o unidad.
 - Corregir o eliminar registros erróneos sin perder los demás. El historial permanece al retirar artículos o marcar compras.
 - Modo claro/oscuro y PWA instalable en un origen HTTPS compatible.
