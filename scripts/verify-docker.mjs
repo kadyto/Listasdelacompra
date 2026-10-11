@@ -122,8 +122,39 @@ try {
   });
   assert.ok(html.ok);
   assert.match(await html.text(), /La Compra/);
+  const webBackup = await api("/backups", "POST");
+  const downloaded = await fetch(
+    `${baseURL}/api/backups/${webBackup.filename}/download`,
+  );
+  assert.ok(downloaded.ok);
+  assert.equal(
+    Buffer.from(await downloaded.arrayBuffer())
+      .subarray(0, 16)
+      .toString(),
+    "SQLite format 3\0",
+  );
+  await api("/prices", "POST", {
+    product_id: product.id,
+    store_id: carrefour.id,
+    price: "0,99",
+  });
+  const restoredFromSettings = await api("/backups/restore", "POST", {
+    filename: webBackup.filename,
+    confirm: true,
+  });
+  assert.equal((await api(`/products/${product.id}`)).history.length, 2);
+  assert.ok(
+    (await api("/backups")).some(
+      (file) =>
+        file.filename === restoredFromSettings.previous && file.automatic,
+    ),
+  );
+  compose("restart", "app");
+  compose("up", "-d", "--wait", "--wait-timeout", "90");
+  discoverPort();
+  assert.equal((await api(`/products/${product.id}`)).history.length, 2);
   console.log(
-    "Docker: build, healthcheck, API, reinicio, recreación, copia en caliente y restauración verificados.",
+    "Docker: build, healthcheck, API, reinicio, recreación, copias CLI y desde Ajustes, descarga y restauración verificados.",
   );
 } finally {
   try {

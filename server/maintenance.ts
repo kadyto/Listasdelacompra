@@ -7,9 +7,22 @@ import {
   linkSync,
   renameSync,
   rmSync,
+  readdirSync,
 } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
+import { openDatabase, transaction } from "./db.js";
+
+const backupTables = [
+  "schema_migrations",
+  "app_metadata",
+  "categories",
+  "stores",
+  "products",
+  "shopping_lists",
+  "list_items",
+  "price_records",
+];
 
 export function verifyBackup(path: string) {
   const db = new DatabaseSync(path, { readOnly: true });
@@ -21,15 +34,7 @@ export function verifyBackup(path: string) {
       );
     if (db.prepare("PRAGMA foreign_key_check").all().length)
       throw new Error("La copia contiene relaciones inconsistentes.");
-    for (const table of [
-      "schema_migrations",
-      "stores",
-      "categories",
-      "products",
-      "shopping_lists",
-      "list_items",
-      "price_records",
-    ])
+    for (const table of backupTables)
       if (
         !db
           .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?")
@@ -38,6 +43,70 @@ export function verifyBackup(path: string) {
         throw new Error("El archivo no es una base de datos de La Compra.");
   } finally {
     db.close();
+  }
+}
+
+// Restore data atomically while retaining the server's live SQLite connection.
+// The caller must pause API operations until its preceding backup is finished.
+export function restoreDatabaseData(
+  db: DatabaseSync,
+  source: string,
+  databasePath: string,
+) {
+  verifyBackup(source);
+  const staged = `${databasePath}.restore-${randomUUID()}.sqlite`;
+  let attached = false;
+  try {
+    copyFileSync(source, staged);
+    chmodSync(staged, 0o600);
+    const inspect = new DatabaseSync(staged, { readOnly: true });
+    try {
+      const known = new Set(readdirSync(resolve("server/migrations")));
+      const versions = inspect
+        .prepare("SELECT version FROM schema_migrations")
+        .all();
+      if (versions.some((row) => !known.has(String(row.version))))
+        throw new Error(
+          "La copia pertenece a una versión de la aplicación no compatible.",
+        );
+    } finally {
+      inspect.close();
+    }
+    const upgraded = openDatabase(staged, false);
+    try {
+      for (const table of backupTables) {
+        const columns = (connection: DatabaseSync) =>
+          connection
+            .prepare(`PRAGMA table_info(${table})`)
+            .all()
+            .map((row) => row.name);
+        if (JSON.stringify(columns(db)) !== JSON.stringify(columns(upgraded)))
+          throw new Error(
+            "La estructura de la copia no es compatible con esta versión.",
+          );
+      }
+    } finally {
+      upgraded.close();
+    }
+    verifyBackup(staged);
+    db.prepare("ATTACH DATABASE ? AS restored_copy").run(staged);
+    attached = true;
+    transaction(db, () => {
+      for (const table of [...backupTables].reverse())
+        db.exec(`DELETE FROM main.${table}`);
+      for (const table of backupTables)
+        db.exec(
+          `INSERT INTO main.${table} SELECT * FROM restored_copy.${table}`,
+        );
+      db.exec(`DELETE FROM main.sqlite_sequence;
+        INSERT INTO main.sqlite_sequence SELECT * FROM restored_copy.sqlite_sequence;`);
+      if (db.prepare("PRAGMA main.foreign_key_check").all().length)
+        throw new Error("La copia contiene relaciones inconsistentes.");
+    });
+  } finally {
+    if (attached) db.exec("DETACH DATABASE restored_copy");
+    for (const suffix of ["", "-wal", "-shm"])
+      rmSync(staged + suffix, { force: true });
   }
 }
 

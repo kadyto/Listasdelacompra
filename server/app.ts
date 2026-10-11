@@ -1,12 +1,24 @@
 import Fastify from "fastify";
 import helmet from "@fastify/helmet";
 import fastifyStatic from "@fastify/static";
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import {
+  createReadStream,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+} from "node:fs";
+import { join, resolve } from "node:path";
+import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { z, ZodError } from "zod";
 import { normalize, openDatabase, productIdentity, transaction } from "./db.js";
 import { parseCents, priceDifference, unitPrice } from "./prices.js";
+import {
+  createBackup,
+  restoreDatabaseData,
+  verifyBackup,
+} from "./maintenance.js";
 
 class HttpError extends Error {
   constructor(
@@ -70,17 +82,56 @@ export async function createApp(
     seed?: boolean;
     logger?: boolean;
     serveClient?: boolean;
+    backupDir?: string;
   } = {},
 ) {
-  const db = openDatabase(
-    options.dbPath ?? process.env.DATABASE_PATH ?? "./data/compra.sqlite",
-    options.seed ?? true,
+  const databasePath =
+    options.dbPath ?? process.env.DATABASE_PATH ?? "./data/compra.sqlite";
+  const backupDirectory = resolve(
+    options.backupDir ?? process.env.BACKUP_DIRECTORY ?? "./backups",
   );
+  const db = openDatabase(databasePath, options.seed ?? true);
   const app = Fastify({
     logger: options.logger ?? false,
     bodyLimit: 65536,
     requestTimeout: 15000,
   });
+  let backupBusy = false;
+  let restoring = false;
+  const backupName = z
+    .string()
+    .regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,180}\.sqlite$/);
+  const newBackupName = (prefix = "compra") =>
+    `${prefix}-${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}.sqlite`;
+  const isLiveDatabase = (path: string) => {
+    if (!existsSync(databasePath)) return false;
+    const source = lstatSync(path);
+    const current = lstatSync(databasePath);
+    return source.dev === current.dev && source.ino === current.ino;
+  };
+  const backupPath = (name: string) => {
+    const path = join(backupDirectory, backupName.parse(name));
+    if (!existsSync(path) || !lstatSync(path).isFile())
+      throw new HttpError(
+        404,
+        "No se encuentra esa copia en la carpeta de backups.",
+      );
+    if (isLiveDatabase(path))
+      throw new HttpError(
+        400,
+        "Elige una copia de seguridad, no la base de datos en uso.",
+      );
+    return path;
+  };
+  const backupInfo = (filename: string) => {
+    const info = lstatSync(join(backupDirectory, filename));
+    return {
+      filename,
+      size: info.size,
+      created_at: info.mtime.toISOString(),
+      automatic: filename.startsWith("antes-de-restaurar-"),
+    };
+  };
   const get = (sql: string, ...args: (string | number)[]) =>
     db.prepare(sql).get(...args) as Row | undefined;
   const all = (sql: string, ...args: (string | number)[]) =>
@@ -134,15 +185,13 @@ export async function createApp(
   });
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError)
-      return reply
-        .code(400)
-        .send({
-          message: "Revisa los datos introducidos.",
-          details: error.issues.map((i) => ({
-            field: i.path.join("."),
-            message: i.message,
-          })),
-        });
+      return reply.code(400).send({
+        message: "Revisa los datos introducidos.",
+        details: error.issues.map((i) => ({
+          field: i.path.join("."),
+          message: i.message,
+        })),
+      });
     if (error instanceof HttpError)
       return reply.code(error.statusCode).send({ message: error.message });
     if (!(error instanceof Error)) {
@@ -152,23 +201,19 @@ export async function createApp(
         .send({ message: "No se pudo completar la operación." });
     }
     if (error.message.includes("UNIQUE constraint failed"))
-      return reply
-        .code(409)
-        .send({
-          message:
-            "Ya existe un registro con esos datos. Reutiliza el producto existente o revisa el nombre, la marca, el formato y el EAN.",
-        });
+      return reply.code(409).send({
+        message:
+          "Ya existe un registro con esos datos. Reutiliza el producto existente o revisa el nombre, la marca, el formato y el EAN.",
+      });
     if (error.message.includes("FOREIGN KEY constraint failed"))
       return reply
         .code(400)
         .send({ message: "Uno de los registros asociados ya no existe." });
     if (error.message.includes("database is locked"))
-      return reply
-        .code(503)
-        .send({
-          message:
-            "La base de datos está ocupada. Vuelve a intentarlo en unos segundos.",
-        });
+      return reply.code(503).send({
+        message:
+          "La base de datos está ocupada. Vuelve a intentarlo en unos segundos.",
+      });
     const status =
       "statusCode" in error && typeof error.statusCode === "number"
         ? error.statusCode
@@ -176,11 +221,9 @@ export async function createApp(
     if (status < 500)
       return reply.code(status).send({ message: "La petición no es válida." });
     app.log.error(error);
-    return reply
-      .code(500)
-      .send({
-        message: "No se pudo completar la operación. Inténtalo de nuevo.",
-      });
+    return reply.code(500).send({
+      message: "No se pudo completar la operación. Inténtalo de nuevo.",
+    });
   });
   await app.register(helmet, {
     contentSecurityPolicy: {
@@ -216,6 +259,94 @@ export async function createApp(
         if (!sameHost && !allowed.includes(origin))
           throw new HttpError(403, "Origen no autorizado.");
       }
+    }
+  });
+
+  // Existing database handlers run synchronously. This synchronous hook keeps
+  // them out while the automatic backup and restore transaction are running.
+  app.addHook("preHandler", (request, _reply, done) => {
+    if (restoring && request.url.startsWith("/api"))
+      return done(
+        new HttpError(
+          503,
+          "Se están restaurando los datos. Espera unos segundos.",
+        ),
+      );
+    done();
+  });
+
+  app.get("/api/backups", async () => {
+    mkdirSync(backupDirectory, { recursive: true, mode: 0o700 });
+    return readdirSync(backupDirectory, { withFileTypes: true })
+      .filter(
+        (entry) =>
+          entry.isFile() &&
+          backupName.safeParse(entry.name).success &&
+          !isLiveDatabase(join(backupDirectory, entry.name)),
+      )
+      .map((entry) => backupInfo(entry.name))
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  });
+  app.get("/api/backups/:filename/download", async (request, reply) => {
+    const filename = backupName.parse(
+      (request.params as { filename: string }).filename,
+    );
+    const path = backupPath(filename);
+    return reply
+      .type("application/vnd.sqlite3")
+      .header("Content-Disposition", `attachment; filename="${filename}"`)
+      .send(createReadStream(path));
+  });
+  app.post("/api/backups", async (_request, reply) => {
+    if (backupBusy)
+      throw new HttpError(409, "Ya hay una operación de copia en curso.");
+    backupBusy = true;
+    try {
+      const filename = newBackupName();
+      await createBackup(databasePath, join(backupDirectory, filename));
+      return reply.code(201).send(backupInfo(filename));
+    } catch (error) {
+      app.log.error(error);
+      throw new HttpError(
+        500,
+        "No se pudo guardar la copia. Comprueba que la carpeta de backups permite escribir.",
+      );
+    } finally {
+      backupBusy = false;
+    }
+  });
+  app.post("/api/backups/restore", async (request) => {
+    const { filename } = z
+      .object({ filename: backupName, confirm: z.literal(true) })
+      .strict()
+      .parse(request.body);
+    if (backupBusy)
+      throw new HttpError(409, "Ya hay una operación de copia en curso.");
+    const source = backupPath(filename);
+    try {
+      verifyBackup(source);
+    } catch {
+      throw new HttpError(
+        400,
+        "La copia no es válida. Los datos actuales se han conservado.",
+      );
+    }
+    backupBusy = true;
+    restoring = true;
+    const previous = newBackupName("antes-de-restaurar");
+    try {
+      await createBackup(databasePath, join(backupDirectory, previous));
+      restoreDatabaseData(db, source, databasePath);
+      return { restored: filename, previous };
+    } catch (error) {
+      app.log.error(error);
+      throw new HttpError(
+        400,
+        "No se pudo restaurar la copia. Los datos actuales se han conservado; comprueba la copia, su versión y los permisos de las carpetas.",
+      );
+    } finally {
+      restoring = false;
+      backupBusy = false;
     }
   });
 

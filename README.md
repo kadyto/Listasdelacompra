@@ -21,6 +21,7 @@ Si ya tienes el repositorio, conserva tu `.env` y tus carpetas de datos. Comprue
 - Crear y editar productos con marca, categoría, formato, EAN y notas. Seleccionar varias listas al crearlos y añadirlos a otras después. Buscar por nombre, marca o EAN y gestionar categorías.
 - Comprar con cantidades y estados independientes por lista, notas, pendientes/comprados, orden por categoría/nombre/manual y vaciado con confirmación.
 - Compartir los artículos pendientes de cada lista, con cantidades, formatos y notas, desde el menú del móvil, por WhatsApp o copiando el texto.
+- Crear, descargar y restaurar copias SQLite desde Ajustes, con confirmación y una copia automática del estado anterior antes de restaurar.
 - Registrar precios aunque el producto no esté en una lista. Consultar el último por comercio, fecha, historial, ofertas, menor registrado, diferencias en euros y porcentaje y precio por litro, kilo o unidad.
 - Corregir o eliminar registros erróneos sin perder los demás. El historial permanece al retirar artículos o marcar compras.
 - Modo claro/oscuro y PWA instalable en un origen HTTPS compatible.
@@ -118,6 +119,18 @@ Mantén el checkout en `main` para recibir la versión de uso. Reconstruir/recre
 
 ## Copias SQLite consistentes
 
+Desde **Ajustes → Copias de seguridad** puedes:
+
+1. Pulsar **Crear copia**. Se guarda una copia verificada de todo el espacio familiar, con nombre único, en la carpeta configurada en `BACKUP_DIR`.
+2. Pulsar **Descargar** para conservar el archivo `.sqlite` también en otro dispositivo.
+3. Pulsar **Restaurar** en la copia elegida y confirmar. Las listas, productos y precios actuales se sustituyen por los de esa copia. Antes se guarda en la misma carpeta otra copia, con el prefijo `antes-de-restaurar-`.
+
+La restauración desde Ajustes pausa temporalmente las peticiones a los datos y los recupera en una transacción SQLite. Si falla, la transacción se revierte. No hace falta detener el contenedor ni usar SSH. Se validan la integridad, las relaciones y la compatibilidad de la copia; las copias de una versión posterior desconocida se rechazan. Las pantallas se actualizan al terminar. Mantén una sola instancia de la aplicación por base de datos.
+
+En la imagen Docker la carpeta interior es `/backups`, ya montada desde `BACKUP_DIR` en los stacks del proyecto; no hay que añadir variables. En desarrollo se utiliza `./backups`, y `BACKUP_DIRECTORY` permite cambiar esa ubicación interior.
+
+También puedes realizar las operaciones desde terminal:
+
 La base usa WAL. **No copies solo `compra.sqlite` mientras esté abierta**: perderías transacciones del WAL. La herramienta usa la API de backup de SQLite, incluso con el servicio activo, y verifica integridad y claves foráneas.
 
 ```sh
@@ -132,7 +145,9 @@ En local:
 npm run db:backup -- ./backups/compra-copia.sqlite
 ```
 
-### Restaurar
+### Restaurar desde terminal
+
+Estos comandos sirven también para recuperar una instalación cuya aplicación no arranca. La restauración por terminal requiere detener los accesos, a diferencia de la opción integrada en Ajustes.
 
 **Detén todas las instancias y herramientas que utilicen la base.** Coloca la copia en `BACKUP_DIR`:
 

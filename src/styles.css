@@ -1571,6 +1571,40 @@ h1 {
   align-items: start;
   gap: 22px;
 }
+.backup-panel {
+  min-width: 0;
+}
+.backup-create {
+  margin: 16px 0;
+}
+.backup-list {
+  margin-bottom: 18px;
+}
+.backup-row {
+  border-bottom: 1px solid var(--line);
+  padding: 15px 0;
+}
+.backup-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.backup-info small,
+.backup-info > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 6px;
+}
+.backup-message {
+  color: var(--primary);
+}
 .settings-row.inactive {
   opacity: 0.65;
 }

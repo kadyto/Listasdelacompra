@@ -23,6 +23,7 @@ import {
 import { api, date, dateTime, money, number, oldPrice, pack } from "./lib";
 import { Brand, Empty, ErrorBox, LinkArrow, Loading } from "./components";
 import { ShareList } from "./ShareList";
+import { BackupSettings } from "./BackupSettings";
 import type {
   Category,
   Dashboard,
@@ -175,7 +176,9 @@ function StoreCards({ stores }: { stores: Store[] }) {
         <a className="store-card" href={`#/list/${s.id}`} key={s.id}>
           <div className="store-card-top">
             <Brand name={s.name} />
-            <span className={`status-chip ${s.pending_count ? "has-items" : ""}`}>
+            <span
+              className={`status-chip ${s.pending_count ? "has-items" : ""}`}
+            >
               <span />
               {s.pending_count ? "Por comprar" : "Al día"}
             </span>
@@ -183,7 +186,9 @@ function StoreCards({ stores }: { stores: Store[] }) {
           <h3>{s.name}</h3>
           <p className="store-pending">
             <strong>{s.pending_count}</strong>{" "}
-            {s.pending_count === 1 ? "artículo pendiente" : "artículos pendientes"}
+            {s.pending_count === 1
+              ? "artículo pendiente"
+              : "artículos pendientes"}
           </p>
           <div className="store-estimate">
             <span>Estimación registrada</span>
@@ -1295,12 +1300,14 @@ export function SettingsPage({
   categories,
   theme,
   toggleTheme,
+  onRestored,
   ...actions
 }: Actions & {
   stores: Store[];
   categories: Category[];
   theme: string;
   toggleTheme: () => void;
+  onRestored: () => void;
 }) {
   return (
     <>
@@ -1414,6 +1421,7 @@ export function SettingsPage({
             </button>
           </div>
         </section>
+        <BackupSettings revision={actions.revision} onRestored={onRestored} />
         <section className="panel maintenance">
           <div className="section-heading compact">
             <h2>
@@ -1426,9 +1434,8 @@ export function SettingsPage({
             familiar.
           </p>
           <p>
-            Para hacer copias consistentes, restaurarlas o actualizar el
-            contenedor, sigue las instrucciones del README del proyecto. Una
-            copia del navegador no protege la base de datos.
+            Las copias de seguridad se guardan en el servidor. Descarga una
+            copia y consérvala también fuera de este entorno.
           </p>
           <p className="field-hint">
             Sin cuentas de usuario: restringe el acceso a tu LAN o a

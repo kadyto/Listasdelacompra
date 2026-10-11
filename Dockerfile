@@ -12,7 +12,7 @@ RUN --mount=type=secret,id=build_ca,required=false \
     npm run build && npm prune --omit=dev --no-audit --no-fund
 
 FROM node:24-bookworm-slim AS production
-ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0 DATABASE_PATH=/data/compra.sqlite TZ=Europe/Madrid
+ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0 DATABASE_PATH=/data/compra.sqlite BACKUP_DIRECTORY=/backups TZ=Europe/Madrid
 WORKDIR /app
 COPY --from=build --chown=node:node /app/package.json ./
 COPY --from=build --chown=node:node /app/node_modules ./node_modules

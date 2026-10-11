@@ -276,6 +276,7 @@ export default function App() {
               categories={cats}
               theme={theme}
               toggleTheme={toggleTheme}
+              onRestored={() => setRevision((value) => value + 1)}
               {...actions}
             />
           ) : listMatch ? (

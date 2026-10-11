@@ -148,6 +148,8 @@ Vuelve a recargar y verifica los mismos datos. No borres las carpetas de datos d
 
 ## 8. Hacer una copia y actualizar
 
+Desde la aplicación, abre **Ajustes → Copias de seguridad** y pulsa **Crear copia**. Comprueba que aparece con su fecha y usa **Descargar** para guardarla también fuera del servidor. Para recuperar una copia, pulsa **Restaurar** en la fila del archivo y confirma: se guardará automáticamente una copia previa del estado actual y se sustituirán los datos por los de la copia elegida, sin detener el contenedor. Una copia inválida o incompatible se rechaza conservando los datos actuales.
+
 Antes de actualizar, crea una copia consistente con un nombre nuevo:
 
 ```sh
@@ -157,7 +159,7 @@ docker compose build --pull
 docker compose up -d --wait
 ```
 
-Comprueba `docker compose ps` y tus datos desde la interfaz. La copia aparece en `BACKUP_DIR`; conserva otra copia en un dispositivo o ubicación independiente del entorno de despliegue. **No copies solo el archivo SQLite con la aplicación abierta**, porque utiliza WAL. La [sección de copias y restauración del README](../README.md#copias-sqlite-consistentes) explica cómo recuperar esa copia con todas las instancias detenidas.
+Comprueba `docker compose ps` y tus datos desde la interfaz. La copia aparece en `BACKUP_DIR`; conserva otra copia en un dispositivo o ubicación independiente del entorno de despliegue. **No copies solo el archivo SQLite con la aplicación abierta**, porque utiliza WAL. La [sección de copias y restauración del README](../README.md#copias-sqlite-consistentes) explica las opciones integradas y los comandos de recuperación por terminal.
 
 ## Problemas habituales
 

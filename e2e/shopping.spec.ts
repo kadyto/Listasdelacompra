@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { readFileSync } from "node:fs";
 
 test("reutiliza catálogo, respeta cantidades y vacía comprados con confirmación", async ({
   page,
@@ -54,6 +55,88 @@ test("reutiliza catálogo, respeta cantidades y vacía comprados con confirmaci�
   await page.goto(`/#/product/${product.id}`);
   await expect(page.locator(".history-row")).toHaveCount(1);
   await expect(page.locator(".history-row")).toContainText("0,99");
+});
+
+test("crea, descarga y restaura una copia desde Ajustes con confirmación", async ({
+  page,
+  request,
+}, testInfo) => {
+  const original = `Antes de la copia ${testInfo.project.name}`;
+  const changed = `Después de la copia ${testInfo.project.name}`;
+  const created = await request.post("/api/categories", {
+    data: { name: original },
+  });
+  expect(created.status()).toBe(201);
+  const category = await created.json();
+  await page.goto("/#/settings");
+  const panel = page.getByRole("region", { name: "Copias de seguridad" });
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/api/backups") &&
+        response.request().method() === "POST",
+    ),
+    panel.getByRole("button", { name: "Crear copia", exact: true }).click(),
+  ]);
+  expect(response.status()).toBe(201);
+  const { filename } = await response.json();
+  const row = panel.locator(".backup-row").filter({ hasText: filename });
+  await expect(row).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    row
+      .getByRole("link", { name: `Descargar copia ${filename}`, exact: true })
+      .click(),
+  ]);
+  expect(download.suggestedFilename()).toBe(filename);
+  expect(
+    readFileSync((await download.path())!)
+      .subarray(0, 16)
+      .toString(),
+  ).toBe("SQLite format 3\0");
+  expect(
+    (
+      await request.put(`/api/categories/${category.id}`, {
+        data: { name: changed },
+      })
+    ).ok(),
+  ).toBeTruthy();
+  await row
+    .getByRole("button", { name: `Restaurar copia ${filename}`, exact: true })
+    .click();
+  await page.getByRole("button", { name: "Cancelar", exact: true }).click();
+  expect(
+    (await (await request.get("/api/categories")).json()).some(
+      (row: { name: string }) => row.name === changed,
+    ),
+  ).toBe(true);
+  await row
+    .getByRole("button", { name: `Restaurar copia ${filename}`, exact: true })
+    .click();
+  await page.getByRole("button", { name: "Confirmar", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(panel.getByRole("status")).toContainText("Datos restaurados");
+  await expect(
+    page.locator(".settings-row").filter({ hasText: original }),
+  ).toBeVisible();
+  expect(
+    (await (await request.get("/api/categories")).json()).some(
+      (row: { name: string }) => row.name === changed,
+    ),
+  ).toBe(false);
+  await expect(
+    panel
+      .locator(".backup-row")
+      .filter({ hasText: "Copia antes de restaurar" })
+      .first(),
+  ).toBeVisible();
+  await expect(page.locator("body")).toHaveJSProperty(
+    "scrollWidth",
+    await page.evaluate(() => document.documentElement.clientWidth),
+  );
+  await panel.screenshot({
+    path: `test-results/backups-${testInfo.project.name}.png`,
+  });
 });
 
 test("compra móvil: crear, comparar, actualizar y conservar estados independientes", async ({
@@ -244,7 +327,9 @@ async function prepareSharedList(request: APIRequestContext, suffix: string) {
   }
   const list = await (await request.get(`/api/stores/${store.id}/list`)).json();
   for (const productName of [name, bought]) {
-    const item = list.items.find((i: { name: string }) => i.name === productName);
+    const item = list.items.find(
+      (i: { name: string }) => i.name === productName,
+    );
     const response = await request.put(`/api/items/${item.id}`, {
       data: {
         quantity: 3,
@@ -323,7 +408,8 @@ test("abre la lista desde Inicio y permite WhatsApp o copiar sin menú nativo", 
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: {
-        writeText: async (text: string) => Reflect.set(window, "copiedList", text),
+        writeText: async (text: string) =>
+          Reflect.set(window, "copiedList", text),
       },
     });
   });

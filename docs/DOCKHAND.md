@@ -38,13 +38,21 @@ Debe responder `{"status":"ok"}`.
 
 ## Actualizar
 
-Antes de actualizar, ejecuta una [copia consistente](../README.md#copias-sqlite-consistentes) desde la terminal del contenedor, con un nombre nuevo:
+Antes de actualizar, abre **Ajustes → Copias de seguridad** y pulsa **Crear copia**. También puedes hacer una [copia consistente](../README.md#copias-sqlite-consistentes) desde la terminal del contenedor, con un nombre nuevo:
 
 ```sh
 node dist/server/maintenance.js backup /backups/antes-de-actualizar-001.sqlite
 ```
 
 Después, solicita en Dockhand la reconstrucción de la imagen y el despliegue del stack. La construcción descarga la versión actual de `main`; reiniciar el contenedor por sí solo no actualiza el código. Conserva las mismas variables, carpetas y montajes.
+
+## Copias y restauración desde Ajustes
+
+Abre **Ajustes → Copias de seguridad** en la aplicación. **Crear copia** guarda el archivo SQLite en la carpeta que tienes configurada en `BACKUP_DIR`; dentro del contenedor se llama `/backups`. **Descargar** guarda otra copia en tu móvil u ordenador.
+
+Para recuperar datos, pulsa **Restaurar** en el archivo elegido y lee la confirmación. Se sustituirán los datos del espacio familiar por los de la copia. La aplicación guarda primero una copia automática del estado actual en la misma carpeta, pausa el acceso a los datos durante la operación y actualiza las pantallas al terminar. No necesitas SSH ni detener el stack. Si una copia no es válida o no es compatible, se conservan los datos actuales.
+
+Las carpetas de datos y copias deben permitir escribir al UID/GID del contenedor. Si utilizas una versión antigua sin estos botones, reconstruye y despliega el stack desde `main`, y recarga la aplicación. Para recuperar una instalación que no arranca, utiliza la [restauración desde terminal](../README.md#restaurar-desde-terminal).
 
 ## Error: `git` no está en `$PATH`
 
