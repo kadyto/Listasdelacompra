@@ -25,6 +25,7 @@ Si ya tienes el repositorio, conserva tu `.env` y tus carpetas de datos. Comprue
 - Registrar precios aunque el producto no esté en una lista. Consultar el último por comercio, fecha, historial, ofertas, menor registrado, diferencias en euros y porcentaje y precio por litro, kilo o unidad.
 - Corregir o eliminar registros erróneos sin perder los demás. El historial permanece al retirar artículos o marcar compras.
 - Modo claro/oscuro y PWA instalable en un origen HTTPS compatible.
+- Enlace al proyecto en GitHub, versión instalada y aviso de actualizaciones en el pie de todas las pantallas.
 
 Los precios son **referencias históricas**, nunca precios actuales garantizados. Los de más de 30 días se señalan como antiguos. La estimación suma solo pendientes con precio registrado en ese comercio (precio del envase × cantidad); los desconocidos se indican y **no equivalen a cero**. El porcentaje de ahorro es `(precio de referencia − menor registrado) / precio de referencia × 100`; con referencia cero, no hay porcentaje.
 
@@ -105,6 +106,12 @@ Una IP privada **HTTP** normalmente no admite service workers ni instalación co
 No hay sincronización offline. El service worker cachea recursos estáticos y muestra una página clara sin conexión; **no cachea `/api` ni encola escrituras**. Si la conexión falla, no presenta cambios como guardados. Mantén la conectividad/Tailscale activos durante la compra. Los datos se refrescan cada 20 segundos mientras la página es visible y al volver a ella.
 
 ## Actualizar sin perder datos
+
+El pie muestra la versión instalada y un identificador de ocho caracteres de su compilación. La aplicación compara su código con la rama pública `main` de GitHub al abrirse y, mientras está visible, como máximo una vez por hora. El botón **Comprobar actualizaciones** permite consultar el estado; la respuesta del servidor se comparte entre dispositivos y se guarda durante una hora. Tras un fallo se vuelve a intentar a partir de cinco minutos.
+
+**Al día** significa que el código de la aplicación coincide con `main`. **Actualización disponible** enlaza al historial de cambios de GitHub. Los cambios solo en documentación no generan avisos. Si no hay conexión, GitHub limita las consultas o no se puede identificar la compilación, se muestra **No se pudo comprobar**, conservando la versión instalada. La consulta utiliza la API pública de GitHub desde el servidor, sin token ni datos de las listas; necesita acceso HTTPS a `api.github.com`.
+
+El aviso no instala cambios automáticamente. La versión queda fijada al construir la imagen, también cuando Dockhand descarga un archivo sin Git. En Dockhand, sigue los [pasos de actualización del stack](docs/DOCKHAND.md#actualizar). Al terminar, recarga la aplicación.
 
 Haz una copia consistente antes de actualizar. Desde el repositorio en el entorno de despliegue:
 

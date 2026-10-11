@@ -15,6 +15,12 @@ import { z, ZodError } from "zod";
 import { normalize, openDatabase, productIdentity, transaction } from "./db.js";
 import { parseCents, priceDifference, unitPrice } from "./prices.js";
 import {
+  createUpdateChecker,
+  installedBuild,
+  projectUrl,
+  type BuildInfo,
+} from "./version.js";
+import {
   createBackup,
   restoreDatabaseData,
   verifyBackup,
@@ -83,6 +89,9 @@ export async function createApp(
     logger?: boolean;
     serveClient?: boolean;
     backupDir?: string;
+    buildInfo?: BuildInfo;
+    updateFetch?: typeof fetch;
+    updateNow?: () => number;
   } = {},
 ) {
   const databasePath =
@@ -98,6 +107,11 @@ export async function createApp(
   });
   let backupBusy = false;
   let restoring = false;
+  const build = options.buildInfo ?? installedBuild();
+  const checkUpdates = createUpdateChecker(build, {
+    fetch: options.updateFetch,
+    now: options.updateNow,
+  });
   const backupName = z
     .string()
     .regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,180}\.sqlite$/);
@@ -274,6 +288,13 @@ export async function createApp(
       );
     done();
   });
+
+  app.get("/api/version", async () => ({ ...build, projectUrl }));
+  app.get("/api/version/check", async () => ({
+    ...build,
+    projectUrl,
+    ...(await checkUpdates()),
+  }));
 
   app.get("/api/backups", async () => {
     mkdirSync(backupDirectory, { recursive: true, mode: 0o700 });

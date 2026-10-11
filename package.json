@@ -1,6 +1,6 @@
 {
   "name": "listas-de-la-compra",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "concurrently -k -n api,web \"tsx watch server/index.ts\" \"vite --host 0.0.0.0\"",
-    "build": "npm run typecheck && vite build && tsc -p tsconfig.server.json",
+    "build": "npm run typecheck && vite build && tsc -p tsconfig.server.json && node scripts/build-version.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json",
     "start": "node dist/server/index.js",
     "test": "vitest run",

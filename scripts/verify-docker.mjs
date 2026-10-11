@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import assert from "node:assert/strict";
+import { localBuildInfo } from "../server/version-source.ts";
 
 const root = mkdtempSync(join(tmpdir(), "compra-docker-"));
 mkdirSync(join(root, "data"));
@@ -55,6 +56,43 @@ async function api(path, method = "GET", body) {
 try {
   compose("up", "-d", "--build", "--wait", "--wait-timeout", "90");
   discoverPort();
+  const version = await api("/version");
+  assert.equal(
+    version.version,
+    JSON.parse(
+      execFileSync(
+        "docker",
+        [
+          ...args,
+          "exec",
+          "-T",
+          "app",
+          "node",
+          "-e",
+          "console.log(JSON.stringify(require('./package.json')))",
+        ],
+        { encoding: "utf8" },
+      ),
+    ).version,
+  );
+  assert.match(version.source, /^[a-f0-9]{64}$/);
+  assert.equal(version.source, localBuildInfo(process.cwd()).source);
+  const embeddedVersion = JSON.parse(
+    execFileSync(
+      "docker",
+      [
+        ...args,
+        "exec",
+        "-T",
+        "app",
+        "node",
+        "-e",
+        "console.log(require('node:fs').readFileSync('dist/version.json','utf8'))",
+      ],
+      { encoding: "utf8" },
+    ),
+  );
+  assert.equal(version.source, embeddedVersion.source);
   const stores = await api("/stores"),
     category = (await api("/categories"))[0];
   const carrefour = stores.find((s) => s.name === "Carrefour"),

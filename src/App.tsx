@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { api } from "./lib";
+import ProjectVersion from "./ProjectVersion";
 import type { Category, Dashboard, Product } from "./types";
 import {
   AddProducts,
@@ -205,7 +206,7 @@ export default function App() {
         </div>
         <div className="sidebar-footer">
           <span className="private-dot" /> Espacio familiar privado
-          <span>LA COMPRA · v1.0</span>
+          <span>LA COMPRA</span>
         </div>
       </aside>
       <div className="main-shell">
@@ -301,10 +302,10 @@ export default function App() {
             </div>
           )}
           <footer className="page-footer">
-            <span>
+            <span className="footer-motto">
               <Leaf size={14} /> Pequeñas listas. Buenas decisiones.
             </span>
-            <span>Hecho para tu día a día.</span>
+            <ProjectVersion />
           </footer>
         </main>
       </div>

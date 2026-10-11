@@ -828,11 +828,66 @@ h1 {
   font-size: 9px;
   padding: 30px 0 0;
   gap: 15px;
+  flex-wrap: wrap;
 }
-.page-footer span:first-child {
+.footer-motto {
   display: flex;
   align-items: center;
   gap: 7px;
+}
+.project-version {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px 13px;
+  font-size: 11px;
+}
+.project-link,
+.version-status,
+.version-status a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.project-link,
+.version-status a {
+  min-height: 44px;
+}
+.project-link:hover,
+.version-status a:hover {
+  text-decoration: underline;
+}
+.installed-version {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.version-status.current {
+  color: var(--primary);
+}
+.version-status.available {
+  color: var(--primary);
+  font-weight: 650;
+}
+.version-refresh {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  color: var(--muted);
+}
+.version-refresh:hover {
+  background: var(--surface-soft);
+  color: var(--text);
+}
+.version-refresh .checking {
+  animation: version-spin 1s linear infinite;
+}
+@keyframes version-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .mobile-nav {
   display: none;
@@ -2180,7 +2235,7 @@ h1 {
     background: var(--green-soft);
   }
   main {
-    padding: 25px 20px 94px;
+    padding: 25px 20px calc(94px + env(safe-area-inset-bottom));
     min-height: calc(100vh - 62px);
   }
   .page-heading {
@@ -2378,9 +2433,15 @@ h1 {
   .page-footer {
     font-size: 8px;
     padding-top: 26px;
+    scroll-margin-bottom: calc(80px + env(safe-area-inset-bottom));
   }
-  .page-footer > span:last-child {
-    display: none;
+  .project-version a,
+  .version-refresh {
+    scroll-margin-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+  .project-version {
+    width: 100%;
+    justify-content: flex-start;
   }
   .filter-bar {
     flex-direction: column;

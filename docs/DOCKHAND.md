@@ -38,6 +38,8 @@ Debe responder `{"status":"ok"}`.
 
 ## Actualizar
 
+Al pie de la aplicación tienes **Proyecto en GitHub**, el número de versión y el identificador de la compilación instalada. El indicador consulta la rama `main` desde el servidor y muestra **Al día**, **Actualización disponible** o **No se pudo comprobar**. El botón de recarga comprueba el estado; las consultas se guardan durante una hora, o cinco minutos si fallan. No necesitas añadir variables al stack.
+
 Antes de actualizar, abre **Ajustes → Copias de seguridad** y pulsa **Crear copia**. También puedes hacer una [copia consistente](../README.md#copias-sqlite-consistentes) desde la terminal del contenedor, con un nombre nuevo:
 
 ```sh
@@ -45,6 +47,8 @@ node dist/server/maintenance.js backup /backups/antes-de-actualizar-001.sqlite
 ```
 
 Después, solicita en Dockhand la reconstrucción de la imagen y el despliegue del stack. La construcción descarga la versión actual de `main`; reiniciar el contenedor por sí solo no actualiza el código. Conserva las mismas variables, carpetas y montajes.
+
+Recarga la aplicación y comprueba la versión del pie. **Actualización disponible** abre el historial de GitHub, pero no modifica el stack. Si aparece **No se pudo comprobar**, revisa que el contenedor puede salir por HTTPS a `api.github.com`; la aplicación sigue funcionando y vuelve a intentarlo pasados cinco minutos.
 
 ## Copias y restauración desde Ajustes
 

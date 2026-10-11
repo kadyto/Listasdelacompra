@@ -1,6 +1,75 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
+test("muestra la versión y GitHub en el pie, e indica actualizaciones y errores sin perder la versión", async ({
+  page,
+  request,
+}, testInfo) => {
+  const installed = await (await request.get("/api/version")).json();
+  let status = "current";
+  let requests = 0;
+  await page.route("**/api/version/check", async (route) => {
+    requests++;
+    if (status === "error") return route.abort();
+    await route.fulfill({
+      json: {
+        ...installed,
+        status,
+        checkedAt: new Date().toISOString(),
+        nextCheckAt: new Date(Date.now() + 60 * 60_000).toISOString(),
+      },
+    });
+  });
+  await page.goto("/");
+  const footer = page.locator("footer.page-footer");
+  await expect(
+    footer.getByRole("link", { name: "Proyecto en GitHub" }),
+  ).toHaveAttribute("href", "https://github.com/kadyto/Listasdelacompra");
+  await expect(footer.locator(".installed-version")).toHaveText(
+    `v${installed.version} · ${installed.source.slice(0, 8)}`,
+  );
+  await expect(footer.getByRole("status")).toHaveText("Al día");
+  await page.goto("/#/settings");
+  await expect(footer.getByRole("status")).toHaveText("Al día");
+  expect(requests).toBe(1);
+  status = "available";
+  await footer
+    .getByRole("button", { name: "Comprobar actualizaciones" })
+    .click();
+  await expect(
+    footer.getByRole("link", { name: "Actualización disponible" }),
+  ).toHaveAttribute(
+    "href",
+    "https://github.com/kadyto/Listasdelacompra/commits/main/",
+  );
+  await expect(page.locator("body")).toHaveJSProperty(
+    "scrollWidth",
+    await page.evaluate(() => document.documentElement.clientWidth),
+  );
+  await page.evaluate(() =>
+    window.scrollTo(0, document.documentElement.scrollHeight),
+  );
+  const mobileNavigation = page.getByRole("navigation", {
+    name: "Navegación móvil",
+  });
+  if (await mobileNavigation.isVisible()) {
+    expect(
+      (await footer.boundingBox())!.y + (await footer.boundingBox())!.height,
+    ).toBeLessThan((await mobileNavigation.boundingBox())!.y);
+  }
+  await footer.screenshot({
+    path: `test-results/version-${testInfo.project.name}.png`,
+  });
+  status = "error";
+  await footer
+    .getByRole("button", { name: "Comprobar actualizaciones" })
+    .click();
+  await expect(footer.getByRole("status")).toHaveText("No se pudo comprobar");
+  await expect(footer.locator(".installed-version")).toContainText(
+    `v${installed.version}`,
+  );
+});
+
 test("reutiliza catálogo, respeta cantidades y vacía comprados con confirmación", async ({
   page,
   request,
