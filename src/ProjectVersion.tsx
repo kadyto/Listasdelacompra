@@ -7,10 +7,12 @@ import {
   ArrowUpCircle,
 } from "lucide-react";
 import { api } from "./lib";
+import UpdateDialog from "./UpdateDialog";
 
 type Version = {
   version: string;
   source: string | null;
+  selfUpdateSupported?: boolean;
 };
 type Update = Version & {
   status: "current" | "available" | "unknown";
@@ -23,8 +25,48 @@ export default function ProjectVersion() {
   const [version, setVersion] = useState<Version | null>(null);
   const [update, setUpdate] = useState<Update | null>(null);
   const [checking, setChecking] = useState(false);
+  const [showUpdater, setShowUpdater] = useState(false);
+  const [updateId, setUpdateId] = useState<string | null>(() => {
+    try {
+      return sessionStorage.getItem("update-job");
+    } catch {
+      return null;
+    }
+  });
   const nextCheck = useRef(0);
   const running = useRef(false);
+  useEffect(() => {
+    if (!updateId) return;
+    let live = true;
+    const poll = async () => {
+      try {
+        const state = await api<{ job: { id: string; phase: string } | null }>(
+          "/updates",
+        );
+        if (
+          !live ||
+          state.job?.id !== updateId ||
+          !["completed", "failed"].includes(state.job.phase)
+        )
+          return;
+        try {
+          sessionStorage.removeItem("update-job");
+        } catch {
+          /* Optional storage. */
+        }
+        setUpdateId(null);
+        if (state.job.phase === "completed") window.location.reload();
+      } catch {
+        /* The server is briefly unavailable while switching releases. */
+      }
+    };
+    const timer = window.setInterval(poll, 2000);
+    void poll();
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+  }, [updateId]);
 
   async function check(manual = false) {
     if (running.current) return;
@@ -77,72 +119,98 @@ export default function ProjectVersion() {
     ? `Última comprobación: ${new Date(update.checkedAt).toLocaleString("es-ES")}.`
     : "";
   return (
-    <div className="project-version" aria-label="Proyecto y versión instalada">
-      <a
-        href={projectUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="project-link"
+    <>
+      <div
+        className="project-version"
+        aria-label="Proyecto y versión instalada"
       >
-        <Github size={15} aria-hidden="true" /> Proyecto en GitHub
-      </a>
-      <span
-        className="installed-version"
-        title="Versión instalada e identificador de la compilación"
-      >
-        {version
-          ? `v${version.version}${version.source ? ` · ${version.source.slice(0, 8)}` : ""}`
-          : "Versión no disponible"}
-      </span>
-      <span className={`version-status ${status}`} role="status">
-        {status === "available" ? (
-          <a
-            href={`${projectUrl}/commits/main/`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={`${checked} Reconstruye la imagen y despliega el stack para actualizar.`}
-          >
-            <ArrowUpCircle size={15} aria-hidden="true" /> Actualización
-            disponible
-          </a>
-        ) : status === "current" ? (
-          <>
-            <CheckCircle2 size={15} aria-hidden="true" /> Al día
-          </>
-        ) : status === "checking" ? (
-          <>Comprobando…</>
-        ) : (
-          <>
-            <CircleHelp size={15} aria-hidden="true" /> No se pudo comprobar
-          </>
-        )}
-      </span>
-      {update && (
-        <span className="version-checked" title={checked}>
-          {update.status === "unknown" ? "Último intento" : "Comprobado"}:{" "}
-          {new Intl.DateTimeFormat("es-ES", {
-            day: "numeric",
-            month: "short",
-            hour: "2-digit",
-            minute: "2-digit",
-            timeZone: "Europe/Madrid",
-          }).format(new Date(update.checkedAt))}
+        <a
+          href={projectUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="project-link"
+        >
+          <Github size={15} aria-hidden="true" /> Proyecto en GitHub
+        </a>
+        <span
+          className="installed-version"
+          title="Versión instalada e identificador de la compilación"
+        >
+          {version
+            ? `v${version.version}${version.source ? ` · ${version.source.slice(0, 8)}` : ""}`
+            : "Versión no disponible"}
         </span>
-      )}
-      <button
-        type="button"
-        className="version-refresh"
-        onClick={() => void check(true)}
-        disabled={checking}
-        aria-label="Comprobar actualizaciones"
-        title={`${checked} Consultar GitHub de nuevo. Se permite una comprobación manual por minuto; la automática se realiza cada hora.`}
-      >
-        <RefreshCw
-          size={15}
-          aria-hidden="true"
-          className={checking ? "checking" : ""}
+        <span className={`version-status ${status}`} role="status">
+          {status === "available" ? (
+            <a
+              href={`${projectUrl}/commits/main/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`${checked} Reconstruye la imagen y despliega el stack para actualizar.`}
+            >
+              <ArrowUpCircle size={15} aria-hidden="true" /> Actualización
+              disponible
+            </a>
+          ) : status === "current" ? (
+            <>
+              <CheckCircle2 size={15} aria-hidden="true" /> Al día
+            </>
+          ) : status === "checking" ? (
+            <>Comprobando…</>
+          ) : (
+            <>
+              <CircleHelp size={15} aria-hidden="true" /> No se pudo comprobar
+            </>
+          )}
+        </span>
+        {update && (
+          <span className="version-checked" title={checked}>
+            {update.status === "unknown" ? "Último intento" : "Comprobado"}:{" "}
+            {new Intl.DateTimeFormat("es-ES", {
+              day: "numeric",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+              timeZone: "Europe/Madrid",
+            }).format(new Date(update.checkedAt))}
+          </span>
+        )}
+        <button
+          type="button"
+          className="version-refresh"
+          onClick={() => void check(true)}
+          disabled={checking}
+          aria-label="Comprobar actualizaciones"
+          title={`${checked} Consultar GitHub de nuevo. Se permite una comprobación manual por minuto; la automática se realiza cada hora.`}
+        >
+          <RefreshCw
+            size={15}
+            aria-hidden="true"
+            className={checking ? "checking" : ""}
+          />
+        </button>
+        {status === "available" && version?.selfUpdateSupported && (
+          <button
+            className="button primary"
+            onClick={() => setShowUpdater(true)}
+          >
+            Actualizar
+          </button>
+        )}
+      </div>
+      {showUpdater && (
+        <UpdateDialog
+          onClose={() => setShowUpdater(false)}
+          onStarted={(id) => {
+            try {
+              sessionStorage.setItem("update-job", id);
+            } catch {
+              /* Optional storage. */
+            }
+            setUpdateId(id);
+          }}
         />
-      </button>
-    </div>
+      )}
+    </>
   );
 }

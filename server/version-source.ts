@@ -14,7 +14,7 @@ const rootFiles = new Set([
 ]);
 export type SourceEntry = { path: string; sha: string; type: string };
 export function isApplicationSource(path: string) {
-  return rootFiles.has(path) || /^(src|server|public)\//.test(path);
+  return rootFiles.has(path) || /^(src|server|public|bootstrap)\//.test(path);
 }
 export function sourceFingerprint(entries: SourceEntry[]) {
   const files = entries
@@ -35,7 +35,9 @@ export function localBuildInfo(root: string) {
       const path = directory ? `${directory}/${entry.name}` : entry.name;
       if (
         entry.isDirectory() &&
-        ["src", "server", "public", "scripts"].includes(path.split("/")[0])
+        ["src", "server", "public", "scripts", "bootstrap"].includes(
+          path.split("/")[0],
+        )
       )
         visit(path);
       else if (entry.isFile() && isApplicationSource(path)) {

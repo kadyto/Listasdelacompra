@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import assert from "node:assert/strict";
 import { localBuildInfo } from "../server/version-source.ts";
+import { createUpdateFixtures } from "./update-fixtures.mjs";
 
 const root = mkdtempSync(join(tmpdir(), "compra-docker-"));
 mkdirSync(join(root, "data"));
@@ -16,9 +17,11 @@ writeFileSync(
 );
 const project = `compra-test-${process.pid}`;
 const ca = process.env.BUILD_CA_CERT;
+const fixtureDirectory = join(root, "update-fixtures");
+const updateVersions = createUpdateFixtures(fixtureDirectory);
 writeFileSync(
   override,
-  `services:\n  app:\n    image: listasdelacompra:${project}\n${ca ? "    build:\n      secrets:\n        - build_ca\nsecrets:\n  build_ca:\n    file: " + JSON.stringify(resolve(ca)) + "\n" : ""}`,
+  `services:\n  app:\n    image: listasdelacompra:${project}\n    environment:\n      NODE_OPTIONS: "--import /run/update-fixtures/mock.mjs"\n      NODE_USE_ENV_PROXY: "1"\n      NO_PROXY: ${JSON.stringify((process.env.NO_PROXY ?? "") + ",127.0.0.1,localhost")}\n${ca ? "      NODE_EXTRA_CA_CERTS: /run/update-ca.pem\n" : ""}    volumes:\n      - ${JSON.stringify(fixtureDirectory + ":/run/update-fixtures:ro")}\n${ca ? "      - " + JSON.stringify(resolve(ca) + ":/run/update-ca.pem:ro") + "\n    build:\n      secrets:\n        - build_ca\nsecrets:\n  build_ca:\n    file: " + JSON.stringify(resolve(ca)) + "\n" : ""}`,
 );
 const args = [
   "compose",
@@ -52,6 +55,31 @@ async function api(path, method = "GET", body) {
     `${method} ${path}: ${response.status} ${await response.clone().text()}`,
   );
   return response.json();
+}
+async function waitForUpdate(id, expected) {
+  const deadline = Date.now() + 7 * 60_000;
+  let phase;
+  while (Date.now() < deadline) {
+    try {
+      const state = await api("/updates");
+      if (state.job?.id === id) {
+        if (state.job.phase !== phase) {
+          phase = state.job.phase;
+          console.log("Actualización:", phase, state.job.message);
+        }
+        if (["completed", "failed"].includes(phase)) {
+          assert.equal(phase, expected, state.job.message);
+          return state.job;
+        }
+      }
+    } catch (error) {
+      if (error instanceof assert.AssertionError) throw error;
+    }
+    await new Promise((resolveWait) => setTimeout(resolveWait, 1000));
+  }
+  throw new Error(
+    "La actualización no ha terminado dentro del tiempo previsto.",
+  );
 }
 try {
   compose("up", "-d", "--build", "--wait", "--wait-timeout", "90");
@@ -191,8 +219,51 @@ try {
   compose("up", "-d", "--wait", "--wait-timeout", "90");
   discoverPort();
   assert.equal((await api(`/products/${product.id}`)).history.length, 2);
+  assert.equal((await api("/version")).selfUpdateSupported, true);
+  const update = await api("/updates", "POST", { confirm: true });
+  const during = await api("/categories", "POST", {
+    name: "Guardado durante la preparación",
+  });
+  const installed = await waitForUpdate(update.id, "completed");
+  assert.equal((await api("/version")).version, updateVersions[0].version);
+  assert.equal((await api(`/products/${product.id}`)).history.length, 2);
+  assert.ok(
+    (await api("/categories")).some((category) => category.id === during.id),
+  );
+  assert.ok(installed.backup_filename.startsWith("antes-de-actualizar-"));
+  const updatedHTML = await (await fetch(baseURL + "/")).text();
+  const script = /src="([^"]+\.js)"/.exec(updatedHTML)[1];
+  assert.ok(
+    (await (await fetch(baseURL + script)).text()).includes(
+      "La actualización desde el contenedor funciona.",
+    ),
+  );
+  compose("restart", "app");
+  compose("up", "-d", "--wait", "--wait-timeout", "90");
+  discoverPort();
+  assert.equal((await api("/version")).version, updateVersions[0].version);
+  compose("up", "-d", "--force-recreate", "--wait", "--wait-timeout", "90");
+  discoverPort();
+  assert.equal((await api("/version")).version, updateVersions[0].version);
+  writeFileSync(
+    join(fixtureDirectory, "selection.json"),
+    JSON.stringify(updateVersions[1]),
+  );
+  const beforeFailure = await api(`/products/${product.id}`);
+  const failing = await api("/updates", "POST", { confirm: true });
+  const failed = await waitForUpdate(failing.id, "failed");
+  assert.match(failed.message, /recuperado/);
+  assert.equal((await api("/version")).version, updateVersions[0].version);
+  assert.equal(
+    (await api(`/products/${product.id}`)).notes,
+    beforeFailure.notes,
+  );
+  assert.equal((await api(`/products/${product.id}`)).history.length, 2);
+  assert.ok(
+    (await api("/categories")).some((category) => category.id === during.id),
+  );
   console.log(
-    "Docker: build, healthcheck, API, reinicio, recreación, copias CLI y desde Ajustes, descarga y restauración verificados.",
+    "Docker: build, API, copias, restauración, actualización real con npm y compilación, persistencia tras recrear y recuperación de código/datos tras un fallo de arranque verificados.",
   );
 } finally {
   try {

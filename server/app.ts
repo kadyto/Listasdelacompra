@@ -14,6 +14,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { z, ZodError } from "zod";
 import { normalize, openDatabase, productIdentity, transaction } from "./db.js";
 import { parseCents, priceDifference, unitPrice } from "./prices.js";
+import { createUpdater, type UpdaterOptions } from "./updater.js";
 import {
   createUpdateChecker,
   installedBuild,
@@ -92,6 +93,7 @@ export async function createApp(
     buildInfo?: BuildInfo;
     updateFetch?: typeof fetch;
     updateNow?: () => number;
+    updater?: UpdaterOptions;
   } = {},
 ) {
   const databasePath =
@@ -111,6 +113,23 @@ export async function createApp(
   const checkUpdates = createUpdateChecker(build, {
     fetch: options.updateFetch,
     now: options.updateNow,
+  });
+  const updater = createUpdater(
+    databasePath,
+    backupDirectory,
+    build,
+    () => {
+      if (backupBusy || restoring)
+        throw new Error(
+          "Espera a que termine la operación de copia o restauración.",
+        );
+    },
+    options.updater,
+  );
+  const versionInfo = () => ({
+    ...build,
+    projectUrl,
+    selfUpdateSupported: updater.enabled,
   });
   const backupName = z
     .string()
@@ -143,7 +162,7 @@ export async function createApp(
       filename,
       size: info.size,
       created_at: info.mtime.toISOString(),
-      automatic: filename.startsWith("antes-de-restaurar-"),
+      automatic: /^(antes-de-restaurar|antes-de-actualizar)-/.test(filename),
     };
   };
   const get = (sql: string, ...args: (string | number)[]) =>
@@ -195,6 +214,7 @@ export async function createApp(
     GROUP BY s.id ORDER BY s.active DESC, s.id`);
 
   app.addHook("onClose", async () => {
+    await updater.stop();
     db.close();
   });
   app.setErrorHandler((error, _request, reply) => {
@@ -279,6 +299,17 @@ export async function createApp(
   // Existing database handlers run synchronously. This synchronous hook keeps
   // them out while the automatic backup and restore transaction are running.
   app.addHook("preHandler", (request, _reply, done) => {
+    if (
+      updater.dataPaused &&
+      request.url.startsWith("/api") &&
+      !/^\/api\/(updates|version|health)(?:[/?]|$)/.test(request.url)
+    )
+      return done(
+        new HttpError(
+          503,
+          "La aplicación está cambiando de versión. Espera unos segundos.",
+        ),
+      );
     if (restoring && request.url.startsWith("/api"))
       return done(
         new HttpError(
@@ -289,17 +320,26 @@ export async function createApp(
     done();
   });
 
-  app.get("/api/version", async () => ({ ...build, projectUrl }));
+  app.get("/api/version", async () => versionInfo());
   app.get("/api/version/check", async () => ({
-    ...build,
-    projectUrl,
+    ...versionInfo(),
     ...(await checkUpdates()),
   }));
   app.post("/api/version/check", async () => ({
-    ...build,
-    projectUrl,
+    ...versionInfo(),
     ...(await checkUpdates(true)),
   }));
+  app.get("/api/updates", async () => updater.status());
+  app.post("/api/updates", async (request, reply) => {
+    z.object({ confirm: z.literal(true) })
+      .strict()
+      .parse(request.body);
+    try {
+      return reply.code(202).send(updater.start());
+    } catch (error) {
+      throw new HttpError(409, (error as Error).message);
+    }
+  });
 
   app.get("/api/backups", async () => {
     mkdirSync(backupDirectory, { recursive: true, mode: 0o700 });
@@ -324,7 +364,7 @@ export async function createApp(
       .send(createReadStream(path));
   });
   app.post("/api/backups", async (_request, reply) => {
-    if (backupBusy)
+    if (backupBusy || updater.busy)
       throw new HttpError(409, "Ya hay una operación de copia en curso.");
     backupBusy = true;
     try {
@@ -346,7 +386,7 @@ export async function createApp(
       .object({ filename: backupName, confirm: z.literal(true) })
       .strict()
       .parse(request.body);
-    if (backupBusy)
+    if (backupBusy || updater.busy)
       throw new HttpError(409, "Ya hay una operación de copia en curso.");
     const source = backupPath(filename);
     try {

@@ -116,7 +116,9 @@ export function BackupSettings({
             <div className="backup-info">
               <strong>
                 {file.automatic
-                  ? "Copia antes de restaurar"
+                  ? file.filename.startsWith("antes-de-actualizar-")
+                    ? "Copia antes de actualizar"
+                    : "Copia antes de restaurar"
                   : "Copia de seguridad"}
               </strong>
               <small>

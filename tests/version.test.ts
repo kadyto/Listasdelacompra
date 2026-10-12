@@ -53,6 +53,7 @@ describe("Versión instalada y actualizaciones", () => {
     expect(response.json()).toEqual({
       ...build,
       projectUrl: "https://github.com/kadyto/Listasdelacompra",
+      selfUpdateSupported: false,
     });
     expect(response.headers["cache-control"]).toBe("no-store");
     expect(remote).not.toHaveBeenCalled();

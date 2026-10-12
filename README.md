@@ -27,6 +27,7 @@ Si ya tienes el repositorio, conserva tu `.env` y tus carpetas de datos. Comprue
 - Modo claro/oscuro y PWA instalable en un origen HTTPS compatible.
 - Interfaz en azul, blanco y rojo, con icono ilustrado propio y portada centrada en las listas y los precios.
 - Enlace al proyecto en GitHub, versión instalada y aviso de actualizaciones en el pie de todas las pantallas.
+- Actualizar el código desde la aplicación: descarga y compilación dentro del contenedor, copia SQLite previa y recuperación automática si el nuevo arranque falla.
 
 Los precios son **referencias históricas**, nunca precios actuales garantizados. Los de más de 30 días se señalan como antiguos. La estimación suma solo pendientes con precio registrado en ese comercio (precio del envase × cantidad); los desconocidos se indican y **no equivalen a cero**. El porcentaje de ahorro es `(precio de referencia − menor registrado) / precio de referencia × 100`; con referencia cero, no hay porcentaje.
 
@@ -114,7 +115,15 @@ El pie muestra la versión instalada, un identificador de ocho caracteres de su 
 
 **Al día** significa que el código de la aplicación coincide con `main`. **Actualización disponible** enlaza al historial de cambios de GitHub. Los cambios solo en documentación no generan avisos. Si no hay conexión, GitHub limita las consultas o no se puede identificar la compilación, se muestra **No se pudo comprobar**, conservando la versión instalada. La consulta utiliza la API pública de GitHub desde el servidor, sin token ni datos de las listas; necesita acceso HTTPS a `api.github.com`.
 
-El aviso no instala cambios automáticamente. La versión queda fijada al construir la imagen, también cuando Dockhand descarga un archivo sin Git. En Dockhand, sigue los [pasos de actualización del stack](docs/DOCKHAND.md#actualizar). Al terminar, recarga la aplicación.
+El aviso permite iniciar la actualización con **Actualizar**, si el contenedor utiliza el arranque incluido desde la versión 1.3.0. El proceso pide confirmación y muestra su progreso. La aplicación descarga un commit concreto de `main` que haya superado las comprobaciones `app` y `container` en GitHub, instala las dependencias con `npm ci`, compila y prueba el arranque contra una copia temporal de SQLite. Al finalizar, pausa brevemente el acceso a los datos, guarda una copia en `BACKUP_DIR` y cambia de versión. La página se recarga automáticamente, incluso si has cerrado la ventana de progreso.
+
+La imagen sirve como versión inicial y arranque; las versiones instaladas desde la web quedan en **`DATA_DIR/.app-runtime`**. Se conservan al reiniciar y recrear el contenedor. Si un arranque nuevo falla, se recuperan el código y la copia SQLite del momento del cambio. Se mantienen las dos últimas versiones de código; las copias de seguridad se conservan en `BACKUP_DIR`, con el prefijo `antes-de-actualizar-`. Puedes descargarlas desde Ajustes. Las listas siguen disponibles durante la descarga y la compilación; guarda los formularios antes de confirmar, porque al terminar se recargará la página.
+
+**Primera instalación del actualizador:** reconstruye y despliega una vez la imagen 1.3.0 o posterior desde Dockhand, manteniendo el stack y sus variables. Después, utiliza el botón que aparece cuando haya una actualización. En desarrollo con `npm start` o `npm run dev`, el botón de instalar está deshabilitado porque esos procesos no utilizan el supervisor del contenedor.
+
+El contenedor necesita salida HTTPS a `api.github.com`, `codeload.github.com` y `registry.npmjs.org`, y al menos 512 MB libres adicionales al espacio de las copias de SQLite. Las versiones, la caché npm y los archivos temporales se guardan en el volumen de datos; ese montaje debe permitir ejecutar las herramientas de compilación. La imagen conserva su sistema de archivos de solo lectura. Las versiones de Node.js y de la imagen Docker se actualizan desde Dockhand; si el código requiere un arranque incompatible, el proceso lo indica y conserva la versión en uso. Una imagen Docker posterior se selecciona al arrancar si su versión es igual o superior a la versión persistente. Otros dispositivos que tengan la página abierta deben recargarla después del cambio.
+
+También puedes actualizar la imagen siguiendo los [pasos del stack](docs/DOCKHAND.md#actualizar). El indicador refleja el código que está ejecutándose, proceda de la imagen o de una versión persistente.
 
 Si aparece **Al día** justo después de publicar cambios, revisa la fecha de comprobación y pulsa el botón para consultar de nuevo. En las versiones 1.1.0 y 1.2.0 ese botón reutilizaba la caché de una hora: para comprobar una actualización sin instalarla, reinicia solo el contenedor y recarga la página. La versión instalada permanecerá igual y se hará una consulta nueva a GitHub.
 

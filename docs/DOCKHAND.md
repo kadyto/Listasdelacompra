@@ -38,6 +38,22 @@ Debe responder `{"status":"ok"}`.
 
 ## Actualizar
 
+### Desde la aplicación, a partir de 1.3.0
+
+Instala primero esta funcionalidad **reconstruyendo la imagen y desplegando el stack una vez**, con las mismas variables y montajes. Si el pie todavía muestra 1.1.0 o 1.2.x, el arranque instalado aún no incorpora el actualizador.
+
+Después, cuando el pie indique **Actualización disponible**:
+
+1. Guarda los cambios de los formularios y pulsa **Actualizar**.
+2. Confirma con **Actualizar aplicación**. La ventana muestra descarga, instalación de dependencias, compilación, prueba y reinicio. Puedes cerrarla mientras se prepara la versión; el proceso sigue en el servidor.
+3. Espera a que la página se recargue y comprueba la versión del pie. Se hace una copia SQLite automática antes de cambiar de versión; aparece en **Ajustes → Copias de seguridad**, con el nombre `antes-de-actualizar-...sqlite`.
+
+El código se descarga de un commit de `main` que haya pasado las pruebas de GitHub. Si esas pruebas aún están ejecutándose, espera a que terminen y reintenta. La actualización se prepara en `DATA_DIR/.app-runtime` con el usuario del contenedor, y queda guardada al reiniciar o recrear el stack. Si el nuevo arranque falla, se recuperan automáticamente el código y los datos anteriores. La imagen permanece de solo lectura; las dependencias y versiones nuevas se escriben en el volumen de datos existente.
+
+Permite HTTPS hacia GitHub (`api.github.com` y `codeload.github.com`) y `registry.npmjs.org`. El volumen de datos necesita espacio para versiones, caché y copias: se comprueban al menos 512 MB libres adicionales al espacio de SQLite. Ese montaje debe permitir ejecutar las herramientas de compilación. Si aparece un error, revisa el mensaje y los logs del contenedor. Las actualizaciones de Node.js o del arranque de la imagen se realizan desde Dockhand.
+
+### Reconstruir la imagen desde Dockhand
+
 Al pie de la aplicación tienes **Proyecto en GitHub**, el número de versión, el identificador de la compilación instalada y la fecha de comprobación. El indicador consulta la rama `main` desde el servidor y muestra **Al día**, **Actualización disponible** o **No se pudo comprobar**. La comprobación automática se guarda durante una hora, o cinco minutos si falla. El botón de recarga solicita una consulta nueva, con un límite compartido de una comprobación manual por minuto. No necesitas añadir variables al stack.
 
 Antes de actualizar, abre **Ajustes → Copias de seguridad** y pulsa **Crear copia**. También puedes hacer una [copia consistente](../README.md#copias-sqlite-consistentes) desde la terminal del contenedor, con un nombre nuevo:

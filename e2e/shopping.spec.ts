@@ -1,6 +1,96 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
+test("actualiza con confirmación, muestra fallos y recarga al terminar aunque se cierre la ventana", async ({
+  page,
+  request,
+}, testInfo) => {
+  let version = {
+    ...(await (await request.get("/api/version")).json()),
+    selfUpdateSupported: true,
+  };
+  let state: {
+    id: string;
+    phase: string;
+    message: string;
+    target_version: string;
+  } | null = null;
+  let starts = 0;
+  await page.route("**/api/version", (route) =>
+    route.fulfill({ json: version }),
+  );
+  await page.route("**/api/version/check", (route) =>
+    route.fulfill({
+      json: {
+        ...version,
+        status: starts < 2 ? "available" : "current",
+        checkedAt: new Date().toISOString(),
+        nextCheckAt: new Date(Date.now() + 3600_000).toISOString(),
+      },
+    }),
+  );
+  await page.route("**/api/updates", async (route) => {
+    if (route.request().method() === "POST") {
+      expect(route.request().postDataJSON()).toEqual({ confirm: true });
+      starts++;
+      state = {
+        id: `update-${starts}`,
+        phase: "installing",
+        message: "Instalando la nueva versión",
+        target_version: "1.3.1",
+      };
+      return route.fulfill({ status: 202, json: state });
+    }
+    return route.fulfill({ json: { enabled: true, job: state } });
+  });
+  await page.goto("/");
+  const footer = page.locator("footer.page-footer");
+  await footer.getByRole("button", { name: "Actualizar", exact: true }).click();
+  await page.getByRole("button", { name: "Cancelar", exact: true }).click();
+  expect(starts).toBe(0);
+  await footer.getByRole("button", { name: "Actualizar", exact: true }).click();
+  const modal = page.getByRole("dialog", { name: "Actualizar la aplicación" });
+  await modal
+    .getByRole("button", { name: "Actualizar aplicación", exact: true })
+    .click();
+  await expect(modal.getByRole("status")).toContainText(
+    "Instalando la nueva versión",
+  );
+  state = {
+    id: "update-1",
+    phase: "failed",
+    message: "Se han recuperado la aplicación y los datos anteriores.",
+    target_version: "1.3.1",
+  };
+  await expect(modal.getByRole("status")).toContainText("datos anteriores");
+  await modal
+    .getByRole("button", { name: "Reintentar actualización", exact: true })
+    .click();
+  await expect(modal.getByRole("status")).toContainText(
+    "Instalando la nueva versión",
+  );
+  await modal.screenshot({
+    path: `test-results/update-${testInfo.project.name}.png`,
+  });
+  await modal.getByRole("button", { name: "Cerrar", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  state = {
+    id: "update-2",
+    phase: "completed",
+    message: "Actualización instalada",
+    target_version: "1.3.1",
+  };
+  version = { ...version, version: "1.3.1" };
+  await expect(footer.locator(".installed-version")).toContainText("v1.3.1", {
+    timeout: 10_000,
+  });
+  await expect(footer.getByRole("status")).toHaveText("Al día");
+  expect(starts).toBe(2);
+  expect(
+    await page.evaluate(() => sessionStorage.getItem("update-job")),
+  ).toBeNull();
+});
+
 test("muestra la versión y GitHub en el pie, e indica actualizaciones y errores sin perder la versión", async ({
   page,
   request,

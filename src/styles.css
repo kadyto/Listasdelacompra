@@ -813,6 +813,38 @@ h1 {
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
+.update-dialog > p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.8;
+  margin-bottom: 14px;
+}
+.update-progress {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--primary-soft);
+  color: var(--text);
+  border: 1px solid var(--primary-border);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 18px 0;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.update-progress > svg {
+  flex-shrink: 0;
+  color: var(--primary);
+}
+.update-progress small {
+  display: block;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+.update-progress.failed {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
 .version-status.current {
   color: var(--primary);
 }
