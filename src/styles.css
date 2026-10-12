@@ -1470,9 +1470,24 @@ h1 {
   border: 0;
 }
 .association-row > span:nth-child(2),
-.settings-row > span:not(.store-brand) {
+.settings-row > span:not(.store-brand),
+.settings-store-link {
   flex: 1;
   min-width: 0;
+}
+.settings-store-link {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 4px;
+}
+.settings-store-link strong {
+  color: var(--primary);
+}
+.settings-store-link:hover strong,
+.settings-store-link:focus-visible strong {
+  text-decoration: underline;
 }
 .association-row strong,
 .settings-row strong {

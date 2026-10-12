@@ -570,7 +570,7 @@ test("abre la lista desde Inicio y permite WhatsApp o copiar sin menú nativo", 
   page,
   request,
 }, testInfo) => {
-  const { name, bought } = await prepareSharedList(
+  const { store, name, bought } = await prepareSharedList(
     request,
     `texto ${testInfo.project.name}`,
   );
@@ -611,6 +611,17 @@ test("abre la lista desde Inicio y permite WhatsApp o copiar sin menú nativo", 
   await expect(
     page.getByRole("heading", { name: "Supermercados", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Editar Mercadona", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("link", { name: "Lista de Mercadona", exact: true })
+    .click();
+  await expect(page).toHaveURL(new RegExp(`#/list/${store.id}$`));
+  await expect(
+    page.getByRole("heading", { name: "Mercadona", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(name, { exact: true })).toBeVisible();
   await page
     .locator("header")
     .getByRole("link", { name: "Ir al inicio", exact: true })

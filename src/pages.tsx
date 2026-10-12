@@ -1242,14 +1242,18 @@ export function SettingsPage({
               key={s.id}
             >
               <Brand name={s.name} small />
-              <span>
+              <a
+                className="settings-store-link"
+                href={`#/list/${s.id}`}
+                aria-label={`Lista de ${s.name}`}
+              >
                 <strong>{s.name}</strong>
                 <small>
                   {s.active
                     ? `${s.pending_count} pendientes`
                     : "Desactivado · datos conservados"}
                 </small>
-              </span>
+              </a>
               <button
                 className="icon-button"
                 aria-label={`Editar ${s.name}`}
