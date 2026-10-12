@@ -26,12 +26,15 @@ export default function ProjectVersion() {
   const nextCheck = useRef(0);
   const running = useRef(false);
 
-  async function check() {
+  async function check(manual = false) {
     if (running.current) return;
     running.current = true;
     setChecking(true);
     try {
-      const result = await api<Update>("/version/check");
+      const result = await api<Update>(
+        "/version/check",
+        manual ? "POST" : "GET",
+      );
       setVersion(result);
       setUpdate(result);
       nextCheck.current = Date.parse(result.nextCheckAt);
@@ -114,13 +117,25 @@ export default function ProjectVersion() {
           </>
         )}
       </span>
+      {update && (
+        <span className="version-checked" title={checked}>
+          {update.status === "unknown" ? "Último intento" : "Comprobado"}:{" "}
+          {new Intl.DateTimeFormat("es-ES", {
+            day: "numeric",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZone: "Europe/Madrid",
+          }).format(new Date(update.checkedAt))}
+        </span>
+      )}
       <button
         type="button"
         className="version-refresh"
-        onClick={() => void check()}
+        onClick={() => void check(true)}
         disabled={checking}
         aria-label="Comprobar actualizaciones"
-        title={`${checked} Comprobar actualizaciones. GitHub se consulta como máximo una vez por hora; si falla, se reintenta tras cinco minutos.`}
+        title={`${checked} Consultar GitHub de nuevo. Se permite una comprobación manual por minuto; la automática se realiza cada hora.`}
       >
         <RefreshCw
           size={15}

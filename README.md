@@ -110,11 +110,13 @@ No hay sincronización offline. El service worker cachea recursos estáticos y m
 
 ## Actualizar sin perder datos
 
-El pie muestra la versión instalada y un identificador de ocho caracteres de su compilación. La aplicación compara su código con la rama pública `main` de GitHub al abrirse y, mientras está visible, como máximo una vez por hora. El botón **Comprobar actualizaciones** permite consultar el estado; la respuesta del servidor se comparte entre dispositivos y se guarda durante una hora. Tras un fallo se vuelve a intentar a partir de cinco minutos.
+El pie muestra la versión instalada, un identificador de ocho caracteres de su compilación y cuándo se comprobó GitHub. La aplicación compara su código con la rama pública `main` al abrirse y, mientras está visible, consulta automáticamente como máximo una vez por hora. La respuesta del servidor se comparte entre dispositivos y se guarda durante una hora; tras un fallo automático se vuelve a intentar a partir de cinco minutos. El botón **Comprobar actualizaciones** solicita una consulta nueva sin esperar a que venza esa caché. Las comprobaciones manuales se comparten y se limitan a una por minuto.
 
 **Al día** significa que el código de la aplicación coincide con `main`. **Actualización disponible** enlaza al historial de cambios de GitHub. Los cambios solo en documentación no generan avisos. Si no hay conexión, GitHub limita las consultas o no se puede identificar la compilación, se muestra **No se pudo comprobar**, conservando la versión instalada. La consulta utiliza la API pública de GitHub desde el servidor, sin token ni datos de las listas; necesita acceso HTTPS a `api.github.com`.
 
 El aviso no instala cambios automáticamente. La versión queda fijada al construir la imagen, también cuando Dockhand descarga un archivo sin Git. En Dockhand, sigue los [pasos de actualización del stack](docs/DOCKHAND.md#actualizar). Al terminar, recarga la aplicación.
+
+Si aparece **Al día** justo después de publicar cambios, revisa la fecha de comprobación y pulsa el botón para consultar de nuevo. En las versiones 1.1.0 y 1.2.0 ese botón reutilizaba la caché de una hora: para comprobar una actualización sin instalarla, reinicia solo el contenedor y recarga la página. La versión instalada permanecerá igual y se hará una consulta nueva a GitHub.
 
 Haz una copia consistente antes de actualizar. Desde el repositorio en el entorno de despliegue:
 

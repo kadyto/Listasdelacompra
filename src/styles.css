@@ -809,6 +809,10 @@ h1 {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+.version-checked {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
 .version-status.current {
   color: var(--primary);
 }

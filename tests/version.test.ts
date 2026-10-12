@@ -44,6 +44,8 @@ afterEach(async () => {
   rmSync(directory, { recursive: true, force: true });
 });
 const check = () => app.inject({ method: "GET", url: "/api/version/check" });
+const manualCheck = () =>
+  app.inject({ method: "POST", url: "/api/version/check" });
 
 describe("Versión instalada y actualizaciones", () => {
   it("muestra la compilación instalada sin depender de Internet", async () => {
@@ -95,6 +97,68 @@ describe("Versión instalada y actualizaciones", () => {
       ...build,
       status: "available",
     });
+  });
+  it("la comprobación manual detecta una actualización sin esperar a que venza la caché de una hora", async () => {
+    expect((await check()).json().status).toBe("current");
+    const changed = structuredClone(tree);
+    changed.tree[1].sha = "d".repeat(40);
+    clock += 30_000;
+    remote.mockResolvedValueOnce(new Response(JSON.stringify(changed)));
+    expect((await check()).json()).toMatchObject({
+      status: "current",
+      checkedAt: "2026-10-11T12:00:00.000Z",
+    });
+    expect(remote).toHaveBeenCalledTimes(1);
+    expect((await manualCheck()).json()).toMatchObject({
+      status: "available",
+      checkedAt: new Date(clock).toISOString(),
+    });
+    expect(remote).toHaveBeenCalledTimes(2);
+    expect(remote.mock.calls[1][1]?.headers).toHaveProperty(
+      "Cache-Control",
+      "no-cache",
+    );
+    expect((await check()).json().status).toBe("available");
+    expect(remote).toHaveBeenCalledTimes(2);
+  });
+  it("comparte las comprobaciones manuales entre dispositivos y las limita a una por minuto", async () => {
+    await check();
+    await Promise.all([manualCheck(), manualCheck(), manualCheck()]);
+    expect(remote).toHaveBeenCalledTimes(2);
+    clock += 59_000;
+    await manualCheck();
+    expect(remote).toHaveBeenCalledTimes(2);
+    clock += 1_000;
+    await manualCheck();
+    expect(remote).toHaveBeenCalledTimes(3);
+  });
+  it("la comprobación manual revalida el ETag y actualiza la fecha aunque no haya cambios", async () => {
+    await check();
+    clock += 30_000;
+    remote.mockResolvedValueOnce(new Response(null, { status: 304 }));
+    expect((await manualCheck()).json()).toMatchObject({
+      status: "current",
+      checkedAt: new Date(clock).toISOString(),
+    });
+    expect(remote.mock.calls[1][1]?.headers).toHaveProperty(
+      "If-None-Match",
+      '"tree-1"',
+    );
+  });
+  it("permite reintentar manualmente tras un fallo automático y rechaza peticiones de otros sitios", async () => {
+    remote.mockRejectedValueOnce(new Error("Sin red"));
+    expect((await check()).json().status).toBe("unknown");
+    expect((await manualCheck()).json().status).toBe("current");
+    const blocked = await app.inject({
+      method: "POST",
+      url: "/api/version/check",
+      headers: {
+        "sec-fetch-site": "cross-site",
+        origin: "https://otro-sitio.example",
+      },
+    });
+    expect(blocked.statusCode).toBe(403);
+    expect(remote).toHaveBeenCalledTimes(2);
   });
   it("los cambios solo en documentación no provocan una actualización de la aplicación", async () => {
     const changed = structuredClone(tree);

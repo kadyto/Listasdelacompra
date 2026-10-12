@@ -8,14 +8,17 @@ test("muestra la versión y GitHub en el pie, e indica actualizaciones y errores
   const installed = await (await request.get("/api/version")).json();
   let status = "current";
   let requests = 0;
+  const methods: string[] = [];
+  let checkedAt = new Date(Date.now() - 10 * 60_000).toISOString();
   await page.route("**/api/version/check", async (route) => {
     requests++;
+    methods.push(route.request().method());
     if (status === "error") return route.abort();
     await route.fulfill({
       json: {
         ...installed,
         status,
-        checkedAt: new Date().toISOString(),
+        checkedAt,
         nextCheckAt: new Date(Date.now() + 60 * 60_000).toISOString(),
       },
     });
@@ -32,7 +35,10 @@ test("muestra la versión y GitHub en el pie, e indica actualizaciones y errores
   await page.goto("/#/settings");
   await expect(footer.getByRole("status")).toHaveText("Al día");
   expect(requests).toBe(1);
+  expect(methods).toEqual(["GET"]);
+  await expect(footer.locator(".version-checked")).toContainText("Comprobado:");
   status = "available";
+  checkedAt = new Date().toISOString();
   await footer
     .getByRole("button", { name: "Comprobar actualizaciones" })
     .click();
@@ -41,6 +47,11 @@ test("muestra la versión y GitHub en el pie, e indica actualizaciones y errores
   ).toHaveAttribute(
     "href",
     "https://github.com/kadyto/Listasdelacompra/commits/main/",
+  );
+  expect(methods).toEqual(["GET", "POST"]);
+  await expect(footer.locator(".version-checked")).toHaveAttribute(
+    "title",
+    `Última comprobación: ${new Date(checkedAt).toLocaleString("es-ES")}.`,
   );
   await expect(page.locator("body")).toHaveJSProperty(
     "scrollWidth",

@@ -295,6 +295,11 @@ export async function createApp(
     projectUrl,
     ...(await checkUpdates()),
   }));
+  app.post("/api/version/check", async () => ({
+    ...build,
+    projectUrl,
+    ...(await checkUpdates(true)),
+  }));
 
   app.get("/api/backups", async () => {
     mkdirSync(backupDirectory, { recursive: true, mode: 0o700 });

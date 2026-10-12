@@ -52,7 +52,8 @@ export function createUpdateChecker(
   let pending: Promise<UpdateResult> | undefined;
   let etag: string | undefined;
   let latestSource: string | undefined;
-  async function check(): Promise<UpdateResult> {
+  let lastManualCheck: number | undefined;
+  async function check(manual: boolean): Promise<UpdateResult> {
     let status: UpdateResult["status"] = "unknown";
     let lifetime = 5 * 60_000;
     try {
@@ -62,6 +63,7 @@ export function createUpdateChecker(
           Accept: "application/vnd.github+json",
           "User-Agent": "Listasdelacompra-update-check",
           "X-GitHub-Api-Version": "2022-11-28",
+          ...(manual ? { "Cache-Control": "no-cache" } : {}),
           ...(etag ? { "If-None-Match": etag } : {}),
         },
         signal: AbortSignal.timeout(5000),
@@ -87,13 +89,19 @@ export function createUpdateChecker(
       nextCheckAt: new Date(checked + lifetime).toISOString(),
     });
   }
-  return function updates() {
-    if (cached && now() < Date.parse(cached.nextCheckAt))
+  return function updates(manual = false) {
+    if (pending) return pending;
+    if (
+      cached &&
+      (manual
+        ? lastManualCheck !== undefined && now() - lastManualCheck < 60_000
+        : now() < Date.parse(cached.nextCheckAt))
+    )
       return Promise.resolve(cached);
-    if (!pending)
-      pending = check().finally(() => {
-        pending = undefined;
-      });
+    if (manual) lastManualCheck = now();
+    pending = check(manual).finally(() => {
+      pending = undefined;
+    });
     return pending;
   };
 }

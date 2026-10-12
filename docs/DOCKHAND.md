@@ -38,7 +38,7 @@ Debe responder `{"status":"ok"}`.
 
 ## Actualizar
 
-Al pie de la aplicación tienes **Proyecto en GitHub**, el número de versión y el identificador de la compilación instalada. El indicador consulta la rama `main` desde el servidor y muestra **Al día**, **Actualización disponible** o **No se pudo comprobar**. El botón de recarga comprueba el estado; las consultas se guardan durante una hora, o cinco minutos si fallan. No necesitas añadir variables al stack.
+Al pie de la aplicación tienes **Proyecto en GitHub**, el número de versión, el identificador de la compilación instalada y la fecha de comprobación. El indicador consulta la rama `main` desde el servidor y muestra **Al día**, **Actualización disponible** o **No se pudo comprobar**. La comprobación automática se guarda durante una hora, o cinco minutos si falla. El botón de recarga solicita una consulta nueva, con un límite compartido de una comprobación manual por minuto. No necesitas añadir variables al stack.
 
 Antes de actualizar, abre **Ajustes → Copias de seguridad** y pulsa **Crear copia**. También puedes hacer una [copia consistente](../README.md#copias-sqlite-consistentes) desde la terminal del contenedor, con un nombre nuevo:
 
@@ -49,6 +49,12 @@ node dist/server/maintenance.js backup /backups/antes-de-actualizar-001.sqlite
 Después, solicita en Dockhand la reconstrucción de la imagen y el despliegue del stack. La construcción descarga la versión actual de `main`; reiniciar el contenedor por sí solo no actualiza el código. Conserva las mismas variables, carpetas y montajes.
 
 Recarga la aplicación y comprueba la versión del pie. **Actualización disponible** abre el historial de GitHub, pero no modifica el stack. Si aparece **No se pudo comprobar**, revisa que el contenedor puede salir por HTTPS a `api.github.com`; la aplicación sigue funcionando y vuelve a intentarlo pasados cinco minutos.
+
+### Probar el aviso sin actualizar la aplicación
+
+En las versiones 1.1.0 y 1.2.0, el botón de comprobar reutiliza la caché de una hora. Si acabas de publicar una actualización y sigue apareciendo **Al día**, reinicia únicamente el contenedor `app` desde Dockhand y recarga la aplicación. Ese reinicio borra la caché de comprobación, conserva la imagen instalada y permite detectar la actualización. A partir de 1.2.1, utiliza el botón para consultar GitHub de nuevo y revisa la fecha que muestra el pie.
+
+Reiniciar y actualizar son operaciones distintas: para instalar el código nuevo hay que reconstruir la imagen y volver a desplegar. Si tras una reconstrucción permanece el número de versión anterior, solicita una construcción sin caché y la recreación del contenedor, conservando las variables y los montajes.
 
 ## Copias y restauración desde Ajustes
 
