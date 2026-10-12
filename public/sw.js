@@ -1,4 +1,4 @@
-const CACHE = "la-compra-static-v1";
+const CACHE = "la-compra-static-v2";
 const OFFLINE = "/offline.html";
 self.addEventListener("install", (event) => {
   event.waitUntil(

@@ -8,7 +8,6 @@ import {
   Package,
   Search,
   Settings2,
-  ShoppingBasket,
   Sun,
   Tag,
   WifiOff,
@@ -164,9 +163,7 @@ export default function App() {
       </a>
       <aside className="sidebar">
         <a href="#/" className="app-brand">
-          <span>
-            <ShoppingBasket size={25} strokeWidth={1.8} />
-          </span>
+          <img src="/icons/icon-192.png" alt="" width="44" height="44" />
           <div>
             la compra<span>un poco más fácil.</span>
           </div>
@@ -213,7 +210,7 @@ export default function App() {
         <header className="topbar">
           <div className="breadcrumb">
             <a href="#/" className="space-link">
-              <ShoppingBasket size={17} />
+              <img src="/icons/icon-192.png" alt="" width="28" height="28" />
               <span>Mi espacio</span>
             </a>
             <ChevronRight size={14} />

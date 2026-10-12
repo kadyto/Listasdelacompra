@@ -216,7 +216,9 @@ test("compra móvil: crear, comparar, actualizar y conservar estados independien
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Tu compra, en orden." }),
+    page.getByRole("heading", {
+      name: "Todas tus listas. Los precios que recuerdas.",
+    }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Nuevo producto", exact: true })
@@ -367,7 +369,9 @@ test("configuración, modo oscuro e instalación PWA sin cachear la API", async 
   expect(cachesAPI).toEqual([]);
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Tu compra, en orden." }),
+    page.getByRole("heading", {
+      name: "Todas tus listas. Los precios que recuerdas.",
+    }),
   ).toBeVisible();
   await page.screenshot({
     path: `test-results/home-${testInfo.project.name}.png`,
@@ -494,7 +498,9 @@ test("abre la lista desde Inicio y permite WhatsApp o copiar sin menú nativo", 
     .getByRole("link", { name: "Mi espacio", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Tu compra, en orden." }),
+    page.getByRole("heading", {
+      name: "Todas tus listas. Los precios que recuerdas.",
+    }),
   ).toBeVisible();
   await page
     .locator(".summary-card")

@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Clock3,
   LayoutGrid,
-  Leaf,
   ListChecks,
   Package,
   Pencil,
@@ -93,7 +92,7 @@ function PageHeading({
 }: {
   eyebrow: string;
   title: string;
-  description: string;
+  description?: string;
   children?: React.ReactNode;
 }) {
   return (
@@ -101,72 +100,10 @@ function PageHeading({
       <div>
         <span className="eyebrow">{eyebrow}</span>
         <h1>{title}</h1>
-        <p>{description}</p>
+        {description && <p>{description}</p>}
       </div>
       {children}
     </div>
-  );
-}
-function BagIllustration() {
-  return (
-    <svg className="bag-illustration" viewBox="0 0 320 230" aria-hidden="true">
-      <ellipse
-        cx="168"
-        cy="207"
-        rx="113"
-        ry="13"
-        fill="#196c52"
-        opacity=".08"
-      />
-      <circle cx="180" cy="109" r="94" fill="#d0e6cd" opacity=".7" />
-      <path d="M122 104L104 48q4-18 17-9l20 58" fill="#e3ae55" />
-      <path
-        d="M119 51l10-6M123 64l10-6M129 78l9-5"
-        stroke="#be8436"
-        strokeWidth="4"
-        strokeLinecap="round"
-      />
-      <path
-        d="M175 105q-37-41-15-64 16 12 15 33 3-38 25-37 5 25-18 49 24-25 39-11 0 20-35 36"
-        fill="#448557"
-      />
-      <path
-        d="M171 104q-5-35 22-54"
-        fill="none"
-        stroke="#286943"
-        strokeWidth="3"
-      />
-      <path d="M205 125l16-67q3-9 11-4l12 5q7 2 3 10l-22 67" fill="#ed9563" />
-      <path
-        d="M229 57q-6-22 4-28 9 8 1 22 14-21 24-14-1 14-21 21"
-        fill="#579768"
-      />
-      <circle cx="146" cy="101" r="27" fill="#d65d47" />
-      <path d="M138 77l7 10 9-11-10 3z" fill="#3e764e" />
-      <path d="M80 97q80 18 174 0l-17 101q-75 17-144 0z" fill="#e6c597" />
-      <path d="M80 97q85 18 174 0l-5 22q-83 18-165-2z" fill="#d9b37e" />
-      <path
-        d="M128 134v-19q0-37 40-37t40 37v19"
-        fill="none"
-        stroke="#a67d51"
-        strokeWidth="9"
-        strokeLinecap="round"
-      />
-      <path
-        d="M137 151q29 31 61 0"
-        fill="none"
-        stroke="#176b52"
-        strokeWidth="5"
-        strokeLinecap="round"
-      />
-      <circle cx="112" cy="175" r="5" fill="#bb9662" opacity=".5" />
-      <path
-        d="M58 142l-10-6m215 25l13-5M80 44l-7-10"
-        stroke="#7caf86"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }
 function StoreCards({ stores }: { stores: Store[] }) {
@@ -243,8 +180,7 @@ export function Home({
     <>
       <PageHeading
         eyebrow="TU ESPACIO DE COMPRA"
-        title="Tu compra, en orden."
-        description="Todas tus listas. Los precios que recuerdas. Un poco más fácil."
+        title="Todas tus listas. Los precios que recuerdas."
       >
         <button
           className="button primary"
@@ -253,30 +189,9 @@ export function Home({
           <Plus size={19} /> Nuevo producto
         </button>
       </PageHeading>
-      <section className="home-hero">
-        <div>
-          <span className="hero-label">
-            <Leaf size={15} /> COMPRAR CON CALMA
-          </span>
-          <h2>
-            Menos olvidos.
-            <br />
-            Mejores decisiones.
-          </h2>
-          <p>
-            Apunta lo que necesitas y compara los precios
-            <br className="desktop-only" /> que has registrado en tus
-            supermercados.
-          </p>
-          <a className="hero-link" href="#/prices">
-            Consultar mis precios <ArrowUpRight size={17} />
-          </a>
-        </div>
-        <BagIllustration />
-      </section>
       <div className="summary-grid">
         <a className="summary-card" href="#/lists">
-          <span className="stat-icon green">
+          <span className="stat-icon blue">
             <ListChecks size={22} />
           </span>
           <div>
@@ -286,7 +201,7 @@ export function Home({
           <span className="stat-caption">En todas tus listas</span>
         </a>
         <a className="summary-card" href="#/settings">
-          <span className="stat-icon amber">
+          <span className="stat-icon red">
             <ShoppingBasket size={22} />
           </span>
           <div>
@@ -296,7 +211,7 @@ export function Home({
           <span className="stat-caption">Tus comercios activos</span>
         </a>
         <a className="summary-card" href="#/catalog">
-          <span className="stat-icon lavender">
+          <span className="stat-icon blue-alt">
             <Package size={22} />
           </span>
           <div>
@@ -384,19 +299,11 @@ export function Home({
           )}
         </section>
         <aside className="tip-card">
-          <span className="tip-label">
-            <Leaf size={17} /> UN PEQUEÑO HÁBITO
-          </span>
-          <h3>
-            ¿Lo has visto
-            <br />
-            más barato?
-          </h3>
+          <h3>¿Lo has visto más barato?</h3>
           <p>
             Guarda el precio y su fecha. La próxima vez que compres, tendrás una
             referencia a mano.
           </p>
-          <span className="tip-footer">Tu memoria de precios, sin prisa.</span>
         </aside>
       </div>
     </>
@@ -1158,7 +1065,7 @@ export function PricesPage({
         </button>
       </PageHeading>
       <div className="price-intro">
-        <span className="stat-icon green">
+        <span className="stat-icon blue">
           <Tag size={25} />
         </span>
         <div>

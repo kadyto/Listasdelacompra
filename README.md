@@ -25,6 +25,7 @@ Si ya tienes el repositorio, conserva tu `.env` y tus carpetas de datos. Comprue
 - Registrar precios aunque el producto no esté en una lista. Consultar el último por comercio, fecha, historial, ofertas, menor registrado, diferencias en euros y porcentaje y precio por litro, kilo o unidad.
 - Corregir o eliminar registros erróneos sin perder los demás. El historial permanece al retirar artículos o marcar compras.
 - Modo claro/oscuro y PWA instalable en un origen HTTPS compatible.
+- Interfaz en azul, blanco y rojo, con icono ilustrado propio y portada centrada en las listas y los precios.
 - Enlace al proyecto en GitHub, versión instalada y aviso de actualizaciones en el pie de todas las pantallas.
 
 Los precios son **referencias históricas**, nunca precios actuales garantizados. Los de más de 30 días se señalan como antiguos. La estimación suma solo pendientes con precio registrado en ese comercio (precio del envase × cantidad); los desconocidos se indican y **no equivalen a cero**. El porcentaje de ahorro es `(precio de referencia − menor registrado) / precio de referencia × 100`; con referencia cero, no hay porcentaje.
@@ -102,6 +103,8 @@ Restringe acceso con el firewall del entorno y ACL/grants de Tailscale. IP LAN +
 Abre la URL **HTTPS** de Tailscale Serve en Chrome para Android y usa «Instalar aplicación»/«Añadir a la pantalla de inicio» cuando Chrome lo ofrezca. Incluye manifiesto, iconos PNG 192/512, icono maskable y service worker; se abre sin las barras del navegador.
 
 Una IP privada **HTTP** normalmente no admite service workers ni instalación completa; la excepción de localhost no se aplica al acceder a un servidor remoto desde Android. La web funciona conectada en HTTP y puede haber un acceso directo simple, pero la PWA depende de HTTPS y los criterios del navegador.
+
+Tras actualizar la imagen, recarga la aplicación para renovar la interfaz y sus recursos. Si Android conserva el icono anterior en un acceso directo, elimina ese acceso directo y vuelve a instalar la PWA desde el navegador. Las listas y los precios siguen guardados en el servidor.
 
 No hay sincronización offline. El service worker cachea recursos estáticos y muestra una página clara sin conexión; **no cachea `/api` ni encola escrituras**. Si la conexión falla, no presenta cambios como guardados. Mantén la conectividad/Tailscale activos durante la compra. Los datos se refrescan cada 20 segundos mientras la página es visible y al volver a ella.
 
